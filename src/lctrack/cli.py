@@ -9,7 +9,7 @@ import git
 import uuid
 import subprocess
 
-from .ds import Entry, RmEntryEvent
+from .ds import AddEntryEvent, Entry, Problem, RmEntryEvent
 
 from .logic import calculate_new_state
 from . import access
@@ -42,14 +42,17 @@ def main():
         typer.echo("Initialising lc-track local database...") 
         access.init_db()
 
-    if access.db_exists() and access.get_state("initial_sync") != "complete":
-        initial_sync()
-        typer.echo(f"{BOLD_WHITE}lc-track setup complete.{RESET}\n")
+    if access.db_exists():
+        with access.get_db_connection() as con: 
+            if access.get_state(con, "initial_sync") != "complete":
+                initial_sync()
+                typer.echo(f"{BOLD_WHITE}lc-track setup complete.{RESET}\n")
 
 @app.command(name="study")
 def study():
     """Select a random problem from the set of active problems that are due for review."""
-    problems = access.get_for_review_problems()
+    with access.get_db_connection() as con:
+        problems = access.get_for_review_problems(con)
 
     if not problems:
         typer.echo("No problems due for review.")
@@ -68,7 +71,8 @@ def study():
 @app.command(name="ls-active")
 def ls_active():
     """ List all problems currently in the active study set. """
-    active_problems = access.get_active_problems()
+    with access.get_db_connection() as con:
+        active_problems = access.get_active_problems(con)
 
     if not active_problems:
         typer.echo("Your active study set is empty. Use 'lc-track activate <id>' to add some!")
@@ -88,7 +92,8 @@ def ls_active():
 @app.command(name="ls-review")
 def ls_for_review():
     """ List all problems, within the active set, currently due for review. """
-    due_problems = access.get_for_review_problems()
+    with access.get_db_connection() as con:
+        due_problems = access.get_for_review_problems(con)
 
     if not due_problems:
         typer.echo("No problems due for review. You're all caught up!")
@@ -110,41 +115,42 @@ def activate(id: int) -> None:
     """ Add a problem to the active study set. 
     Usage: lc-track activate <problem id>
     """
-    problem = access.get_problem(id)
+    with access.get_db_connection() as con:
+        problem = access.get_problem(con, id)
     
-    if not problem:
-        typer.echo(f"No problem found with id: {id}")
-        raise typer.Exit(1)
+        if not problem:
+            typer.echo(f"No problem found with id: {id}")
+            raise typer.Exit(1)
 
-    problem_txt = f"LC{id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
+        problem_txt = f"LC{id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
 
-    if problem.active:
-        typer.echo(f"{problem_txt} is already in the active study set.")
-        raise typer.Exit(1)
+        if problem.active:
+            typer.echo(f"{problem_txt} is already in the active study set.")
+            raise typer.Exit(1)
 
-    access.set_active(id, True)
+        access.set_active(con, id, True)
 
     typer.echo(f"{BOLD_WHITE}Added to active study set:{RESET} {problem_txt}")
-
 
 @app.command(name="deactivate")
 def deactivate(id: int) -> None:
     """ Remove a problem from the active study set. 
     Usage: lc-track deactivate <problem id>
     """
-    problem = access.get_problem(id)
-    
-    if not problem:
-        typer.echo(f"No problem found with id: {id}")
-        raise typer.Exit(1)
+    with access.get_db_connection() as con:
+        problem = access.get_problem(con, id)
+        
+        if not problem:
+            typer.echo(f"No problem found with id: {id}")
+            raise typer.Exit(1)
 
-    problem_txt = f"LC{id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
+        problem_txt = f"LC{id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
 
-    if not problem.active:
-        typer.echo(f"{problem_txt} is not in the active study set.")
-        raise typer.Exit(1)
+        if not problem.active:
+            typer.echo(f"{problem_txt} is not in the active study set.")
+            raise typer.Exit(1)
 
-    access.set_active(id, False)
+        access.set_active(con, id, False)
 
     typer.echo(f"{BOLD_WHITE}Removed from active study set:{RESET} {problem_txt}")
 
@@ -153,15 +159,19 @@ def details(id: int) -> None:
     """ Show the details of a LC problem. 
     Usage: lc-track details <problem id>
     """
-    problem = access.get_problem(id)
+
+    with access.get_db_connection() as con:
+        problem = access.get_problem(con, id)
+        if problem:
+            topics = access.get_problem_topics(con, id)
     
     if not problem: 
         typer.echo(f"No problem found with id: {id}")
         raise typer.Exit(1)
 
-    topics = access.get_problem_topics(id)
-    now = datetime.datetime.now()
+    assert(isinstance(problem, Problem))
 
+    now = datetime.datetime.now()
     # Header
     problem_header = f"{BOLD_WHITE}LC{id}. {problem.title}{RESET} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
 
@@ -173,6 +183,7 @@ def details(id: int) -> None:
     else:
         last_review_txt = "Never"
 
+    print(problem)
     # Next review text
     if not problem.active:
         next_review_txt = "N/A (not in study set)"
@@ -187,14 +198,16 @@ def details(id: int) -> None:
             days = diff.days
             hours = diff.seconds // 3600
             next_review_txt = f"{next_date_txt} (due in {days} days, {hours} hours)"
+    else:
+        next_review_txt = "Not yet studied (due for review)"
 
     output = [
             problem_header,
             f"Topics: {', '.join(topics)}",
             f"Last Review: {last_review_txt}",
             f"Next Review: {next_review_txt}",
-            f"Interval: {problem.i:}",
-            f"Repitition: {problem.n:}",
+            f"Interval: {problem.i}",
+            f"Repitition: {problem.n}",
             f"Easiness Factor: {problem.ef:.2f}"
     ]
 
@@ -212,21 +225,28 @@ def add_entry(
     now_ts = int(datetime.datetime.now().timestamp())
 
     # Ensure the problem exists
-    problem = access.get_problem(id) 
+    with access.get_db_connection() as con:
+        problem = access.get_problem(con, id) 
     if not problem:
         typer.echo(f"No problem found with id: {id}")
         raise typer.Exit(1)
+    
+    assert isinstance(problem, Problem)
 
     # Calculate the new state of the problem, based of the provided confidence rating (0-5)
     n, ef, i, next_rev_ts = calculate_new_state(problem.n, problem.ef, problem.i, confidence, now_ts)
-    entry_uuid = str(uuid.uuid4()) # This uniquely identifies the entry AND the ADD_ENTRY event
+    entry_uuid = str(uuid.uuid4())
 
     # Update program state in single atomic transaction
     try: 
         con = access.get_db_connection()
         with con:
             # Insert entry (ADD_ENTRY event logged as side effect)
-            access.add_entry(con, entry_uuid, problem.id, confidence, now_ts)
+            access.add_entry(
+                con,
+                Entry(entry_uuid, id, confidence, now_ts)
+            )
+            # Update the SM2 state of the problem
             access.update_SM2_state(
                 con,
                 problem.id,
@@ -239,12 +259,13 @@ def add_entry(
 
             # Write event to event history, if this fails the above two changes will be rolled back
             access.append_event(
-                access.create_add_entry_event(entry_uuid, problem.id, confidence, now_ts)
+                AddEntryEvent(str(uuid.uuid4), now_ts, entry_uuid, problem.id, confidence)
             )
 
     except Exception as exc:
         typer.echo(f"Failed to log entry: {exc}")
         raise typer.Exit(1)
+
     finally:
         if con:
             con.close()
@@ -265,7 +286,7 @@ def rm_entry(entry_uuid : str) -> None:
     """ Remove an entry and update the SM2 state.
     Usage: lc-track rm-entry <entry uuid>
     """
-    now = int(datetime.datetime().now().timestamp())
+    now = int(datetime.datetime.now().timestamp())
 
     # 1. Check than an entry with the uuid exists
     try: 
@@ -317,18 +338,19 @@ def rm_entry(entry_uuid : str) -> None:
 @app.command(name="log")
 def log():
     """Show entry logs in a searchable pager."""
+    with access.get_db_connection() as con:
+        entries = access.get_all_entries(con)
 
-    entries = access.get_all_entries()
-    entries.sort(key = lambda x : x[3], reverse=True)
+    entries.sort(key = lambda x : x.ts, reverse=True)
     output_lines = []
     
-    for uuid, problem_id, confidence, ts in entries:
-        date_str = date_from_ts(ts)
+    for E in entries:
+        date_str = date_from_ts(E.ts)
         w = 12 
         entry_block = (
-            f"{YELLOW}commit {uuid}{RESET}\n"
-            f"{'Problem ID:':<{w}} {problem_id}\n"
-            f"{'Confidence:':<{w}} {confidence}/5\n"
+            f"{YELLOW}entry {E.uuid}{RESET}\n"
+            f"{'Problem ID:':<{w}} {E.problem_id}\n"
+            f"{'Confidence:':<{w}} {E.confidence}/5\n"
             f"{'Date:':<{w}} {date_str}\n"
         )
         output_lines.append(entry_block)
@@ -341,7 +363,6 @@ def log():
         process.communicate(input=full_text)
     except FileNotFoundError:
         print(full_text)
-
 
 @app.command(name="set-pat")
 def set_pat(pat: str = typer.Argument(..., help="Your GitHub Personal Access Token")):

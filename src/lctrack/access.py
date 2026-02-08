@@ -194,7 +194,6 @@ def append_event(event : BaseEvent) -> None:
         json_event = json.dumps(event.to_dict())
         f.write(json_event + '\n')
 
-
 def process_event(con : sqlite3.Connection, event : BaseEvent) -> None:
     match event:
         case AddEntryEvent():
