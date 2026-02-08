@@ -9,9 +9,11 @@ import git
 import uuid
 import subprocess
 
+from .ds import Entry, RmEntryEvent
+
 from .logic import calculate_new_state
 from . import access
-from .utility import initial_sync, date_from_ts
+from .utility import initial_sync, date_from_ts, SM2
 from . import github_client
 from .constants import BACKUP_REPO_DIR, BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY, TMP_EVENT_HISTORY, YELLOW, GREEN, RED, PURPLE, CYAN, RESET, BOLD_WHITE
 from . import backup
@@ -66,7 +68,7 @@ def study():
 @app.command(name="ls-active")
 def ls_active():
     """ List all problems currently in the active study set. """
-    active_problems = access.get_active()
+    active_problems = access.get_active_problems()
 
     if not active_problems:
         typer.echo("Your active study set is empty. Use 'lc-track activate <id>' to add some!")
@@ -258,36 +260,56 @@ def add_entry(
     typer.echo(output)
 
 
-# TODO: Implement proper access.rm_entry that only removes an entry from database
-# TODO: ... + implement proper logic.rm_entry that utilises the access.rm_entry whilst also implementing the state recalc logic
 @app.command(name="rm-entry")
 def rm_entry(entry_uuid : str) -> None:
     """ Remove an entry and update the SM2 state.
     Usage: lc-track rm-entry <entry uuid>
     """
-    access.get_entry(entry_uuid)
+    now = int(datetime.datetime().now().timestamp())
 
-    con = None
-    try:
-        con =  access.get_db_connection()
-        access.rm_entry(entry_uuid)
+    # 1. Check than an entry with the uuid exists
+    try: 
+        con = access.get_db_connection()
+        entry = access.get_entry(con, entry_uuid)
     except Exception as exc:
-        typer.echo(f"Failed to rm entry: {exc}")
+        typer.echo(f"Failed to check for entry existence: {exc}")
         raise typer.Exit(1)
-    finally:
-        if con:
-            con.close()
 
-    # Get the entry by it's uuid
+    if not entry:
+        logging.info(f"No entry found with uuid: {entry_uuid}")
+        raise typer.Exit(1)
 
-    # Within a single transaction, delete the entry, get all of the remaining entries
-    # ... re-calculate the problem state based of said entries if all of the above succeeds
-    # ... THEN append a RM_ENTRY event to the event history
-
+    problem_id = entry.problem_id
+    
+    # 2. Update program state in a single atomic transaction
     try:
-        problem_id = logic.rm_entry(entry_uuid)
+        with con:
+            access.rm_entry(con, entry_uuid)
+
+            # Get all of the entries with the problem_id    
+            entries : List[Entry] = access.get_entries_by_problem_id(con, problem_id)
+
+            # TODO: Move to seperate utility method
+            n, ef, i = 0, 2.5, 0 
+            if not entries:
+                last_review_ts, next_review_ts = 0, 0
+            else:
+                entries.sort(key = lambda x : x.ts)
+                last_review_ts = 0
+                for E in entries:
+                    n, ef, i = SM2(E.confidence, n, ef, i)
+                    last_review_ts = E.ts
+                next_review_ts = last_review_ts + int(round(i * 86400))
+
+            access.update_SM2_state(con, problem_id, n, ef, i, last_review_ts, next_review_ts)
+
+            # If the above succeeds without error, append the RM_ENTRY to event log
+            access.append_event(
+                RmEntryEvent(str(uuid.uuid4()), now, target_entry_uuid=entry_uuid)
+            ) # If throws exception, then db rolled back
+
     except Exception as exc:
-        logging.error(f"Failed to remove entry: {exc}")
+        typer.echo(f"Failed to remove entry with uuid={entry_uuid}: {exc}")
         raise typer.Exit(1)
 
     logging.info(f"Record {entry_uuid} removed. LC {problem_id} state recalculated.")
@@ -309,8 +331,6 @@ def log():
             f"{'Confidence:':<{w}} {confidence}/5\n"
             f"{'Date:':<{w}} {date_str}\n"
         )
-        output_lines.append(entry_block)
-
         output_lines.append(entry_block)
 
     # Join with a newline to separate blocks

@@ -98,6 +98,6 @@ def update_state_from_local_event_history() -> None:
         for k, v in sm2_states.items()
     ]
 
-    access.bulk_update_SM2_state(new_states)
+    access.bulk_update_problem_state(new_states)
 
 
