@@ -9,7 +9,6 @@ import git
 from pathlib import Path
 from typing import Dict, Tuple, List, Any, Optional
 
-from .logic import SM2
 from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
 from .constants import DB_FILE, LOCAL_EVENT_HISTORY, BACKUP_EVENT_HISTORY, TMP_EVENT_HISTORY
 
@@ -136,7 +135,7 @@ def update_SM2_state(con : sqlite3.Connection,
 
 def bulk_update_problem_state(
         con : sqlite3.Connection, 
-        new_states : List[int, float, int, int, int, int]) -> None:
+        new_states : List[Tuple[int, float, int, int, int, int]]) -> None:
     """
     Bulk update problems table with problem_states
 

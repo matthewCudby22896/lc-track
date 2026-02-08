@@ -39,6 +39,7 @@ class BaseEvent(ABC):  # Inherit from ABC
         data = asdict(self)
         data["EVENT_TYPE"] = self.EVENT_TYPE
         return data
+    
 
 @dataclass
 class AddEntryEvent(BaseEvent):
@@ -48,10 +49,28 @@ class AddEntryEvent(BaseEvent):
     problem_id: int
     confidence: int
 
+    @classmethod
+    def from_dict(cls, _dict : dict) -> AddEntryEvent:
+        return AddEntryEvent(
+            _dict['uuid'],
+            _dict['ts'],
+            _dict['entry_uuid'],
+            _dict['problem_id'],
+            _dict['confidence']
+        )
+
 @dataclass
 class RmEntryEvent(BaseEvent):
     EVENT_TYPE: ClassVar[Final[str]] = "RM_ENTRY"
     target_entry_uuid: UUID
+
+    @classmethod
+    def from_dict(cls, _dict : dict) -> RmEntryEvent:
+        return RmEntryEvent(
+            _dict['uuid'],
+            _dict['ts'],
+            _dict['target_entry_uuid']
+        )
 
 @dataclass
 class Problem:

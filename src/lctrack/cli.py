@@ -1,19 +1,16 @@
-import re
 import logging
 import datetime
 import typer
-import click
 import random
 import github
 import git
 import uuid
 import subprocess
 
-from .ds import AddEntryEvent, Entry, Problem, RmEntryEvent
+from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
 
-from .logic import calculate_new_state
 from . import access
-from .utility import initial_sync, date_from_ts, SM2
+from .utility import initial_sync, date_from_ts, SM2, calculate_new_state
 from .constants import BACKUP_REPO_DIR, BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY, TMP_EVENT_HISTORY, YELLOW, GREEN, RED, PURPLE, CYAN, RESET, BOLD_WHITE
 from . import backup
 from typing import Annotated, List
@@ -497,7 +494,7 @@ def sync():
 
         # Step 2: Merge logic
         typer.echo("Sync [2/4]: Merging local and backup event logs...")
-        event_history = backup.merge_event_logs(BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY)
+        event_history : List[BaseEvent] = backup.merge_event_logs(BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY)
 
         # Atomic writes to both destinations
         for target_path in [BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY]:
