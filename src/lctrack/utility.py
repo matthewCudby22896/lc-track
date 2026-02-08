@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Dict, Any
 
 from .constants import BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY
-from .sm2 import SM2
 from .lc_client import fetch_all_problems
 from . import access
 
@@ -21,62 +20,6 @@ INT_TO_DIFF = {
     1 : "Medium",
     0 : "Easy"
 }
-
-@dataclass
-class Problem:
-    id: int
-    slug : str
-    title : str
-    difficulty : int
-    difficulty_txt : str
-    last_review_at : Optional[int]
-    next_review_at : int
-    ef : float
-    i : int
-    n : int
-    active : bool
-
-    @classmethod
-    def from_row(cls, row: tuple):
-        return cls(
-            id=row[0],
-            slug=row[1],
-            title=row[2],
-            difficulty=row[3],
-            difficulty_txt=INT_TO_DIFF[row[3]],
-            last_review_at=row[4],
-            next_review_at=row[5],
-            ef=row[6],
-            i=row[7],
-            n=row[8],
-            active=bool(row[9])
-        )
-
-def recalc_and_set_problem_state(problem_id: int) -> None:
-    """Recompute SM-2 state, last/next review from this problem's entries."""
-    # [(id, confidence, ts)]
-    entries: List[Tuple[str, int, int, int]] = access.get_all_entries_by_problem_id(problem_id)
-
-    if not entries: # Reset to default state
-        now = int(datetime.datetime.now().timestamp())
-        n, EF, I = 0, 2.5, 0.0
-        last_review_at = 0
-        next_review_at = now
-        access.update_SM2_state(problem_id, n, EF, I, last_review_at, next_review_at)
-        return
-
-    entries.sort(key=lambda x: x[3])  # ts asc
-
-    n, EF, I = 0, 2.5, 0.0
-    last_ts = 0
-    for _, _, conf, ts in entries:
-        n, EF, I = SM2(conf, n, EF, I)
-        last_ts = ts
-
-    last_review_at = last_ts
-    next_review_at = last_ts + int(round(I * 86400))
-
-    access.update_SM2_state(problem_id, n, EF, I, last_review_at, next_review_at)
 
 def initial_sync() -> None:
     problems_raw = fetch_all_problems()
@@ -115,3 +58,40 @@ def initial_sync() -> None:
         logging.error(f"Failed to sync problem set with leetcode.com: {e}")
     finally:
         con.close()
+
+def date_from_ts(unix_ts : int) -> str:
+    return datetime.datetime.fromtimestamp(unix_ts).strftime("%Y-%m-%d %H:%M")
+
+def SM2(q : int,
+        n : int, 
+        EF : float,
+        I : int) -> Tuple[int, float, int]:
+
+        if q >= 3: # (correct response)
+            if n == 0:
+                I = 1
+            elif n == 1:
+                I = 6
+            else:
+                I = round(I * EF)
+            n += 1
+        else: # (incorrect response)
+            n = 0
+            I = 1
+
+        EF = EF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))
+        if EF < 1.3:
+            EF = 1.3
+        
+        return n, EF, I
+        
+def calculate_new_state(n : int, ef : float, i : int, confidence : int, now_ts : int) -> Tuple[int, float, int, int]:
+    """ 
+    """
+    assert 0 <= confidence <= 5, "Confidence must be in range (0-5)"
+
+    n, ef, i = SM2(confidence, n, ef, i)
+
+    next_review_at = now_ts + (i * 86400)
+
+    return n, ef, i, next_review_at
