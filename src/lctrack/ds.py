@@ -82,6 +82,7 @@ class Problem:
             n=row[8],
             active=bool(row[9])
         )
+    
 
 DIFF_TO_INT = {
     "Hard" : 2, 

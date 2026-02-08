@@ -78,6 +78,7 @@ def recalc_and_set_problem_state(problem_id: int) -> None:
 
     access.update_SM2_state(problem_id, n, EF, I, last_review_at, next_review_at)
 
+
 def initial_sync() -> None:
     problems_raw = fetch_all_problems()
     

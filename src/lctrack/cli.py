@@ -14,11 +14,9 @@ from .ds import AddEntryEvent, Entry, Problem, RmEntryEvent
 from .logic import calculate_new_state
 from . import access
 from .utility import initial_sync, date_from_ts, SM2
-from . import github_client
 from .constants import BACKUP_REPO_DIR, BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY, TMP_EVENT_HISTORY, YELLOW, GREEN, RED, PURPLE, CYAN, RESET, BOLD_WHITE
 from . import backup
-from rich.progress import track
-from typing import Annotated, Any, Dict, Tuple, List
+from typing import Annotated, List
 
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -66,7 +64,7 @@ def study():
         typer.echo(f"An unexpected error has occured: The chosen question's difficulty text was not recognised (problem_id={chosen.problem_id})")
         raise typer.Exit(1)
 
-    typer.echo(f"To study: LC{chosen.id}. {chosen.title} {colour_code}[{chosen.difficulty_txt}]{RESET}")
+    typer.echo(f"To study: LC{chosen.id}. {chosen.title} {colour_code}[{chosen.difficulty_txt}]{RESET}\n")
 
 @app.command(name="ls-active")
 def ls_active():
@@ -183,7 +181,6 @@ def details(id: int) -> None:
     else:
         last_review_txt = "Never"
 
-    print(problem)
     # Next review text
     if not problem.active:
         next_review_txt = "N/A (not in study set)"
@@ -208,7 +205,7 @@ def details(id: int) -> None:
             f"Next Review: {next_review_txt}",
             f"Interval: {problem.i}",
             f"Repitition: {problem.n}",
-            f"Easiness Factor: {problem.ef:.2f}"
+            f"Easiness Factor: {problem.ef:.2f}\n"
     ]
 
     typer.echo("\n".join(output))
@@ -259,7 +256,7 @@ def add_entry(
 
             # Write event to event history, if this fails the above two changes will be rolled back
             access.append_event(
-                AddEntryEvent(str(uuid.uuid4), now_ts, entry_uuid, problem.id, confidence)
+                AddEntryEvent(str(uuid.uuid4()), now_ts, entry_uuid, problem.id, confidence)
             )
 
     except Exception as exc:
@@ -275,7 +272,7 @@ def add_entry(
             f"LC{problem.id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"
             f"Confidence: {confidence}\n"
             f"Streak: {n}\n"
-            f"Next Review: {date_from_ts(next_rev_ts)}"
+            f"Next Review: {date_from_ts(next_rev_ts)}\n"
         )
 
     typer.echo(output)
@@ -333,7 +330,7 @@ def rm_entry(entry_uuid : str) -> None:
         typer.echo(f"Failed to remove entry with uuid={entry_uuid}: {exc}")
         raise typer.Exit(1)
 
-    logging.info(f"Record {entry_uuid} removed. LC {problem_id} state recalculated.")
+    typer.echo(f"Entry {YELLOW}{entry_uuid}{RESET} removed. LC {problem_id} state recalculated.")
 
 @app.command(name="log")
 def log():
@@ -454,42 +451,43 @@ def sync():
     """
     
     # 1. Configuration Check
-    if access.get_state('SYNC_SETUP') != 'SUCCESS':
-        typer.echo("Error: Sync not configured. Run `lc-track setup-backup` first.")
-        raise typer.Exit(1)
-
-    pat = access.get_state('PAT') 
-    repo_name = access.get_state('BACKUP_REPO_NAME')
-    username = access.get_state('USERNAME')
-    auth_url = f"https://{pat}@github.com/{username}/{repo_name}.git"
-
-    # 2. Repository Initialisation
-    try:
-        if not access.check_repo(BACKUP_REPO_DIR):
-            typer.echo(f"Initialisation: Cloning remote backup to {BACKUP_REPO_DIR}...")
-            repo = git.Repo.clone_from(auth_url, BACKUP_REPO_DIR)
-        else:
-            repo = git.Repo(BACKUP_REPO_DIR)
-            repo.remotes.origin.set_url(auth_url)
-    except Exception as exc:
-        typer.echo(f"Failed to initialise local repository from remote:\n\t{exc}")
-        raise typer.Exit(1)
-
-    # 3. Handle Empty Remote (First-time use)
-    if not repo.refs:
-        try:
-            typer.echo("Setup: Initialising new remote repository with README.md...")
-            readme_file = BACKUP_REPO_DIR / "README.md"
-            with open(readme_file, 'w', encoding='utf-8') as f:
-                f.write("# lc-track remote backup\n Event history backup for LeetCode tracking.") 
-
-            repo.index.add(['README.md'])
-            repo.index.commit("Initial setup")
-            repo.remotes.origin.push('main:main')
-
-        except Exception as exc:
-            typer.echo(f"Failed to handle initialisation of empty repository:\n\t{exc}")
+    with access.get_db_connection() as con:
+        if access.get_state(con, 'SYNC_SETUP') != 'SUCCESS':
+            typer.echo("Error: Sync not configured. Run `lc-track setup-backup` first.")
             raise typer.Exit(1)
+
+        pat = access.get_state(con, 'PAT') 
+        repo_name = access.get_state(con, 'BACKUP_REPO_NAME')
+        username = access.get_state(con, 'USERNAME')
+        auth_url = f"https://{pat}@github.com/{username}/{repo_name}.git"
+
+        # 2. Repository Initialisation
+        try:
+            if not access.check_repo(BACKUP_REPO_DIR):
+                typer.echo(f"Initialisation: Cloning remote backup to {BACKUP_REPO_DIR}...")
+                repo = git.Repo.clone_from(auth_url, BACKUP_REPO_DIR)
+            else:
+                repo = git.Repo(BACKUP_REPO_DIR)
+                repo.remotes.origin.set_url(auth_url)
+        except Exception as exc:
+            typer.echo(f"Failed to initialise local repository from remote:\n\t{exc}")
+            raise typer.Exit(1)
+
+        # 3. Handle Empty Remote (First-time use)
+        if not repo.refs:
+            try:
+                typer.echo("Setup: Initialising new remote repository with README.md...")
+                readme_file = BACKUP_REPO_DIR / "README.md"
+                with open(readme_file, 'w', encoding='utf-8') as f:
+                    f.write("# lc-track remote backup\n Event history backup for LeetCode tracking.") 
+
+                repo.index.add(['README.md'])
+                repo.index.commit("Initial setup")
+                repo.remotes.origin.push('main:main')
+
+            except Exception as exc:
+                typer.echo(f"Failed to handle initialisation of empty repository:\n\t{exc}")
+                raise typer.Exit(1)
 
     # 4. The Sync Process
     try:
@@ -499,14 +497,14 @@ def sync():
 
         # Step 2: Merge logic
         typer.echo("Sync [2/4]: Merging local and backup event logs...")
-        event_history = backup.merge_event_histories(BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY)
+        event_history = backup.merge_event_logs(BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY)
 
         # Atomic writes to both destinations
         for target_path in [BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY]:
-            backup.write_event_history(TMP_EVENT_HISTORY, event_history)
+            backup.write_event_log(TMP_EVENT_HISTORY, event_history)
             TMP_EVENT_HISTORY.replace(target_path)
 
-        # Step 3: Push back to Cloud
+        # Step 3: Push back to remote
         typer.echo("Sync [3/4]: Uploading synchronised history to GitHub...")
         repo.index.add([BACKUP_EVENT_HISTORY.name]) # Use .name if it's a Path object
         if repo.is_dirty():
@@ -521,8 +519,8 @@ def sync():
 
         typer.echo("Done: Sync successful. Local state and remote state are now up to date.")
 
-    except Exception as e:
-        typer.echo(f"Error: An unexpected error occurred during sync:\n\t{e}")
+    except Exception as exc:
+        typer.echo(f"Error: An unexpected error occurred during sync:\n\t{exc}")
         raise typer.Exit(1)
 
 if __name__ == "__main__":
