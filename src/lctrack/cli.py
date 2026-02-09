@@ -94,7 +94,7 @@ def ls_for_review():
         typer.echo("No problems due for review. You're all caught up!")
         return
     
-    header = f"{BOLD_WHITE}Dur For Review: ({len(due_problems)} problems){RESET}\n" 
+    header = f"{BOLD_WHITE}Due For Review: ({len(due_problems)} problems){RESET}\n" 
 
     lines = [header] + [
         f"LC{p.id:<4}. {p.title:<50} {colours[p.difficulty_txt]}{p.difficulty_txt}{RESET}\n"
@@ -108,7 +108,7 @@ def ls_for_review():
 @app.command(name="activate")
 def activate(id: int) -> None:
     """ Add a problem to the active study set. 
-    Usage: lc-track activate <problem id>
+    Usage: lc-track activate <problem-id>
     """
     with access.get_db_connection() as con:
         problem = access.get_problem(con, id)
@@ -130,7 +130,7 @@ def activate(id: int) -> None:
 @app.command(name="deactivate")
 def deactivate(id: int) -> None:
     """ Remove a problem from the active study set. 
-    Usage: lc-track deactivate <problem id>
+    Usage: lc-track deactivate <problem-id>
     """
     with access.get_db_connection() as con:
         problem = access.get_problem(con, id)
@@ -152,7 +152,7 @@ def deactivate(id: int) -> None:
 @app.command(name="details")
 def details(id: int) -> None:
     """ Show the details of a LC problem. 
-    Usage: lc-track details <problem id>
+    Usage: lc-track details <problem-id>
     """
 
     with access.get_db_connection() as con:
@@ -167,6 +167,7 @@ def details(id: int) -> None:
     assert(isinstance(problem, Problem))
 
     now = datetime.datetime.now()
+
     # Header
     problem_header = f"{BOLD_WHITE}LC{id}. {problem.title}{RESET} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
 
@@ -195,17 +196,17 @@ def details(id: int) -> None:
     else:
         next_review_txt = "Not yet studied (due for review)"
 
-    output = [
-            problem_header,
-            f"Topics: {', '.join(topics)}",
-            f"Last Review: {last_review_txt}",
-            f"Next Review: {next_review_txt}",
-            f"Interval: {problem.i}",
-            f"Repitition: {problem.n}",
-            f"Easiness Factor: {problem.ef:.2f}\n"
-    ]
+    output = (
+        f"{problem_header}\n"
+        f"Topics: {', '.join(topics)}\n"
+        f"Last Review: {last_review_txt}\n"
+        f"Next Review: {next_review_txt}\n"
+        f"Interval: {problem.i}\n"
+        f"Repitition: {problem.n}\n"
+        f"Easiness Factor: {problem.ef:.2f}\n"
+    )
 
-    typer.echo("\n".join(output))
+    typer.echo(output)
 
 @app.command(name="add-entry")
 def add_entry(
@@ -213,7 +214,7 @@ def add_entry(
     confidence: Annotated[int, typer.Argument(min=0, max=5, help="Confidence rating (0-5)")]
 ) -> None:
     """ Log a completion and update the SM-2 state.
-    Usage: lc-track add-entry <problem id> <confidence [0-5]>
+    Usage: lc-track add-entry <problem-id> <confidence [0-5]>
     """
     # Get current time
     now_ts = int(datetime.datetime.now().timestamp())
@@ -265,12 +266,12 @@ def add_entry(
             con.close()
 
     output = (
-            f"{BOLD_WHITE}Entry saved: {RESET}{YELLOW}{entry_uuid}{RESET}\n"
-            f"LC{problem.id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"
-            f"Confidence: {confidence}\n"
-            f"Streak: {n}\n"
-            f"Next Review: {date_from_ts(next_rev_ts)}\n"
-        )
+        f"{BOLD_WHITE}Entry saved: {RESET}{YELLOW}{entry_uuid}{RESET}\n"
+        f"LC{problem.id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"
+        f"Confidence: {confidence}\n"
+        f"Streak: {n}\n"
+        f"Next Review: {date_from_ts(next_rev_ts)}\n"
+    )
 
     typer.echo(output)
 
@@ -278,7 +279,7 @@ def add_entry(
 @app.command(name="rm-entry")
 def rm_entry(entry_uuid : str) -> None:
     """ Remove an entry and update the SM2 state.
-    Usage: lc-track rm-entry <entry uuid>
+    Usage: lc-track rm-entry <entry-uuid>
     """
     now = int(datetime.datetime.now().timestamp())
 

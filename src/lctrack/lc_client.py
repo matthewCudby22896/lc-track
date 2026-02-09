@@ -1,9 +1,8 @@
 import requests
-import logging
 import typer
 from rich.progress import track
 
-from typing import Any, Dict, Tuple, List
+from typing import Any, Dict, List
 
 ALL_PROBLEMS_URL = "https://leetcode.com/api/problems/all/"
 GRAPHQL_ENDPOINT = "https://leetcode.com/graphql"

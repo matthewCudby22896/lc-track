@@ -1,10 +1,7 @@
-from dataclasses import dataclass
 import datetime
 import logging
-from pathlib import Path
-from typing import List, Optional, Tuple, Dict, Any
+from typing import Tuple
 
-from .constants import BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY
 from .lc_client import fetch_all_problems
 from . import access
 
