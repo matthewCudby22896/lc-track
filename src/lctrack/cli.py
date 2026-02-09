@@ -504,7 +504,7 @@ def sync():
 
         # Step 3: Push back to remote
         typer.echo("Sync [3/4]: Uploading synchronised history to GitHub...")
-        repo.index.add([BACKUP_EVENT_HISTORY.name]) # Use .name if it's a Path object
+        repo.index.add([BACKUP_EVENT_HISTORY.name]) 
         if repo.is_dirty():
             repo.index.commit("Sync: Combined local and remote histories")
             repo.remotes.origin.push()
