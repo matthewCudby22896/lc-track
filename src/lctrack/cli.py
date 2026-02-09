@@ -108,7 +108,7 @@ def ls_for_review():
 @app.command(name="activate")
 def activate(id: int) -> None:
     """ Add a problem to the active study set. 
-    Usage: lc-track activate <problem id>
+    Usage: lc-track activate <problem-id>
     """
     with access.get_db_connection() as con:
         problem = access.get_problem(con, id)
@@ -130,7 +130,7 @@ def activate(id: int) -> None:
 @app.command(name="deactivate")
 def deactivate(id: int) -> None:
     """ Remove a problem from the active study set. 
-    Usage: lc-track deactivate <problem id>
+    Usage: lc-track deactivate <problem-id>
     """
     with access.get_db_connection() as con:
         problem = access.get_problem(con, id)
@@ -152,7 +152,7 @@ def deactivate(id: int) -> None:
 @app.command(name="details")
 def details(id: int) -> None:
     """ Show the details of a LC problem. 
-    Usage: lc-track details <problem id>
+    Usage: lc-track details <problem-id>
     """
 
     with access.get_db_connection() as con:
@@ -167,8 +167,9 @@ def details(id: int) -> None:
     assert(isinstance(problem, Problem))
 
     now = datetime.datetime.now()
+
     # Header
-    problem_header = f"{BOLD_WHITE}LC{id}. {problem.title}{RESET} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"
+    problem_header = f"{BOLD_WHITE}LC{id}. {problem.title}{RESET} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
 
     # Last review text
     if problem.last_review_at is not None:
@@ -196,8 +197,8 @@ def details(id: int) -> None:
         next_review_txt = "Not yet studied (due for review)"
 
     output = (
-        f"{problem_header}"
-        f"Topics: {', '.join(topics)}"
+        f"{problem_header}\n"
+        f"Topics: {', '.join(topics)}\n"
         f"Last Review: {last_review_txt}\n"
         f"Next Review: {next_review_txt}\n"
         f"Interval: {problem.i}\n"
@@ -213,7 +214,7 @@ def add_entry(
     confidence: Annotated[int, typer.Argument(min=0, max=5, help="Confidence rating (0-5)")]
 ) -> None:
     """ Log a completion and update the SM-2 state.
-    Usage: lc-track add-entry <problem id> <confidence [0-5]>
+    Usage: lc-track add-entry <problem-id> <confidence [0-5]>
     """
     # Get current time
     now_ts = int(datetime.datetime.now().timestamp())
@@ -278,7 +279,7 @@ def add_entry(
 @app.command(name="rm-entry")
 def rm_entry(entry_uuid : str) -> None:
     """ Remove an entry and update the SM2 state.
-    Usage: lc-track rm-entry <entry uuid>
+    Usage: lc-track rm-entry <entry-uuid>
     """
     now = int(datetime.datetime.now().timestamp())
 
