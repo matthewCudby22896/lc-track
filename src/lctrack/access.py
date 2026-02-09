@@ -1,13 +1,11 @@
 import os
 import json
 from re import match
-import uuid
 import datetime
 import sqlite3
-import logging
 import git    
 from pathlib import Path
-from typing import Dict, Tuple, List, Any, Optional
+from typing import Tuple, List, Optional
 
 from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
 from .constants import DB_FILE, LOCAL_EVENT_HISTORY, BACKUP_EVENT_HISTORY, TMP_EVENT_HISTORY

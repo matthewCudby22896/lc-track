@@ -4,15 +4,15 @@ from pathlib import Path
 from typing import List, Dict, Any, Tuple
 
 
-from .constants import TMP_EVENT_HISTORY, BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY
+from .constants import LOCAL_EVENT_HISTORY
 from .ds import AddEntryEvent, BaseEvent, RmEntryEvent
 from .utility import SM2
 from . import access
 
 def merge_event_logs(hist1 : Path, hist2 : Path) -> List[BaseEvent]:
     # Load both event histories into memory
-    events_local : List[dict] = load_event_log(hist1)
-    events_backup : List[dict] = load_event_log(hist2)
+    events_local : List[BaseEvent] = load_event_log(hist1)
+    events_backup : List[BaseEvent] = load_event_log(hist2)
 
     # Merge the two into a single list of unique events, sorted by ts
     combined_events = list({event.uuid: event for event in events_backup + events_local}.values())
