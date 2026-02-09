@@ -2,7 +2,7 @@
 
 A CLI tool for tracking LeetCode problem completions that uses the [SuperMemo2](https://en.wikipedia.org/wiki/SuperMemo) (SM2) spaced repetition algorithm to determine the optimal time at which to re-review the problem. 
 
-**`lc-track`** removes the burden of deciding which LeetCode problem to study by randomly choosing problems for study from the active study set; And temporarily removing studied problems for a time period determined by the SM-2 algorithm (and the users confidence) in a manner that optimises for maximum retention.
+**lc-track** removes the burden of deciding which LeetCode problem to study by randomly choosing problems for study from the active study set; And temporarily removing studied problems for a time period determined by the SM-2 algorithm (and the users confidence) in a manner that optimises for maximum retention.
 
 ### FEATURES
 
