@@ -82,7 +82,7 @@ The configuration process guides the user through establishing a GitHub reposito
 
 For users wishing to restore an existing history to a new environment, following the same same steps will sync their local state with that of the remote.
 
-##### A note on event history & local-remote synchronisation
+##### A Note on Event History & Local-remote Synchronisation
 
 `lc-track` maintains a comprehensive history of `ADD_ENTRY` and `RM_ENTRY` events. Each event is uniquely identified by a UUID and stored within an append-only event log.
 
