@@ -152,7 +152,7 @@ def bulk_update_problem_state(
     finally:
         cur.close()
 
-def set_active(con :sqlite3.Connection, problem_id: int, active: bool) -> None:  
+def set_active(con :sqlite3.Connection, problem_id : int, active: bool) -> None:  
     cur = con.cursor()
     try:
         cur.execute(

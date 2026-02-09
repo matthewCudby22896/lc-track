@@ -94,7 +94,7 @@ def ls_for_review():
         typer.echo("No problems due for review. You're all caught up!")
         return
     
-    header = f"{BOLD_WHITE}Dur For Review: ({len(due_problems)} problems){RESET}\n" 
+    header = f"{BOLD_WHITE}Due For Review: ({len(due_problems)} problems){RESET}\n" 
 
     lines = [header] + [
         f"LC{p.id:<4}. {p.title:<50} {colours[p.difficulty_txt]}{p.difficulty_txt}{RESET}\n"
@@ -168,7 +168,7 @@ def details(id: int) -> None:
 
     now = datetime.datetime.now()
     # Header
-    problem_header = f"{BOLD_WHITE}LC{id}. {problem.title}{RESET} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
+    problem_header = f"{BOLD_WHITE}LC{id}. {problem.title}{RESET} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"
 
     # Last review text
     if problem.last_review_at is not None:
@@ -195,17 +195,17 @@ def details(id: int) -> None:
     else:
         next_review_txt = "Not yet studied (due for review)"
 
-    output = [
-            problem_header,
-            f"Topics: {', '.join(topics)}",
-            f"Last Review: {last_review_txt}",
-            f"Next Review: {next_review_txt}",
-            f"Interval: {problem.i}",
-            f"Repitition: {problem.n}",
-            f"Easiness Factor: {problem.ef:.2f}\n"
-    ]
+    output = (
+        f"{problem_header}"
+        f"Topics: {', '.join(topics)}"
+        f"Last Review: {last_review_txt}\n"
+        f"Next Review: {next_review_txt}\n"
+        f"Interval: {problem.i}\n"
+        f"Repitition: {problem.n}\n"
+        f"Easiness Factor: {problem.ef:.2f}\n"
+    )
 
-    typer.echo("\n".join(output))
+    typer.echo(output)
 
 @app.command(name="add-entry")
 def add_entry(
@@ -265,12 +265,12 @@ def add_entry(
             con.close()
 
     output = (
-            f"{BOLD_WHITE}Entry saved: {RESET}{YELLOW}{entry_uuid}{RESET}\n"
-            f"LC{problem.id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"
-            f"Confidence: {confidence}\n"
-            f"Streak: {n}\n"
-            f"Next Review: {date_from_ts(next_rev_ts)}\n"
-        )
+        f"{BOLD_WHITE}Entry saved: {RESET}{YELLOW}{entry_uuid}{RESET}\n"
+        f"LC{problem.id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"
+        f"Confidence: {confidence}\n"
+        f"Streak: {n}\n"
+        f"Next Review: {date_from_ts(next_rev_ts)}\n"
+    )
 
     typer.echo(output)
 
