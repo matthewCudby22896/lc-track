@@ -53,12 +53,12 @@ def study():
         typer.echo("No problems due for review.")
         return
 
-    chosen = random.choice(problems)
+    chosen : Problem = random.choice(problems)
     
     colour_code = colours.get(chosen.difficulty_txt)
 
     if not colour_code:
-        typer.echo(f"An unexpected error has occured: The chosen question's difficulty text was not recognised (problem_id={chosen.problem_id})")
+        typer.echo(f"An unexpected error has occured: The chosen question's difficulty text was not recognised (problem_id={chosen.id})\n")
         raise typer.Exit(1)
 
     typer.echo(f"To study: LC{chosen.id}. {chosen.title} {colour_code}[{chosen.difficulty_txt}]{RESET}\n")
@@ -92,7 +92,7 @@ def ls_for_review():
 
     if not due_problems:
         typer.echo("No problems due for review. You're all caught up!")
-        return
+        raise typer.Exit(0)
     
     header = f"{BOLD_WHITE}Due For Review: ({len(due_problems)} problems){RESET}\n" 
 
@@ -114,18 +114,18 @@ def activate(id: int) -> None:
         problem = access.get_problem(con, id)
     
         if not problem:
-            typer.echo(f"No problem found with id: {id}")
+            typer.echo(f"No problem found with id: {id}\n")
             raise typer.Exit(1)
 
         problem_txt = f"LC{id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
 
         if problem.active:
-            typer.echo(f"{problem_txt} is already in the active study set.")
+            typer.echo(f"{problem_txt} is already in the active study set.\n")
             raise typer.Exit(1)
 
         access.set_active(con, id, True)
 
-    typer.echo(f"{BOLD_WHITE}Added to active study set:{RESET} {problem_txt}")
+    typer.echo(f"{BOLD_WHITE}Added to active study set:{RESET} {problem_txt}\n")
 
 @app.command(name="deactivate")
 def deactivate(id: int) -> None:
@@ -136,18 +136,18 @@ def deactivate(id: int) -> None:
         problem = access.get_problem(con, id)
         
         if not problem:
-            typer.echo(f"No problem found with id: {id}")
+            typer.echo(f"No problem found with id: {id}\n")
             raise typer.Exit(1)
 
         problem_txt = f"LC{id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
 
         if not problem.active:
-            typer.echo(f"{problem_txt} is not in the active study set.")
+            typer.echo(f"{problem_txt} is not in the active study set.\n")
             raise typer.Exit(1)
 
         access.set_active(con, id, False)
 
-    typer.echo(f"{BOLD_WHITE}Removed from active study set:{RESET} {problem_txt}")
+    typer.echo(f"{BOLD_WHITE}Removed from active study set:{RESET} {problem_txt}\n")
 
 @app.command(name="details")
 def details(id: int) -> None:
@@ -288,11 +288,11 @@ def rm_entry(entry_uuid : str) -> None:
         con = access.get_db_connection()
         entry = access.get_entry(con, entry_uuid)
     except Exception as exc:
-        typer.echo(f"Failed to check for entry existence: {exc}")
+        typer.echo(f"Failed to check for entry existence: {exc}\n")
         raise typer.Exit(1)
 
     if not entry:
-        logging.info(f"No entry found with uuid: {entry_uuid}")
+        typer.echo(f"No entry found with uuid: {entry_uuid}\n")
         raise typer.Exit(1)
 
     problem_id = entry.problem_id
@@ -325,10 +325,10 @@ def rm_entry(entry_uuid : str) -> None:
             ) # If throws exception, then db rolled back
 
     except Exception as exc:
-        typer.echo(f"Failed to remove entry with uuid={entry_uuid}: {exc}")
+        typer.echo(f"Failed to remove entry with uuid={entry_uuid}: {exc}\n")
         raise typer.Exit(1)
 
-    typer.echo(f"Entry {YELLOW}{entry_uuid}{RESET} removed. LC {problem_id} state recalculated.")
+    typer.echo(f"Entry {YELLOW}{entry_uuid}{RESET} removed. LC {problem_id} state recalculated.\n")
 
 @app.command(name="log")
 def log():
@@ -370,7 +370,7 @@ def set_pat(pat: str = typer.Argument(..., help="Your GitHub Personal Access Tok
             access.set_state(con, 'PAT', pat)
 
     except Exception as exc:
-        typer.echo("An unexpected exception has occurred: {exc}")
+        typer.echo(f"An unexpected exception has occurred: {exc}\n")
         raise typer.Exit(1)
     
     typer.echo("Success: GitHub PAT has been saved.")
@@ -427,14 +427,14 @@ def setup_backup():
     
     typer.echo("Connected: Read and Write access confirmed")
 
-    # 6. Finalize
+    # 6. Finalise
     with access.get_db_connection() as con:
         access.set_state(con, 'PAT', pat)
         access.set_state(con, 'BACKUP_REPO_NAME', repo_name)
         access.set_state(con, 'USERNAME', username)
         access.set_state(con, 'SYNC_SETUP', 'SUCCESS')
     
-    typer.echo("Success: Sync configuration saved")
+    typer.echo("Success: Sync configuration saved\n")
 
 @app.command(name="sync")
 def sync():
@@ -451,7 +451,7 @@ def sync():
     # 1. Configuration Check
     with access.get_db_connection() as con:
         if access.get_state(con, 'SYNC_SETUP') != 'SUCCESS':
-            typer.echo("Error: Sync not configured. Run `lc-track setup-backup` first.")
+            typer.echo("Error: Sync not configured. Run `lc-track setup-backup` first.\n")
             raise typer.Exit(1)
 
         pat = access.get_state(con, 'PAT') 
@@ -468,7 +468,7 @@ def sync():
                 repo = git.Repo(BACKUP_REPO_DIR)
                 repo.remotes.origin.set_url(auth_url)
         except Exception as exc:
-            typer.echo(f"Failed to initialise local repository from remote:\n\t{exc}")
+            typer.echo(f"Failed to initialise local repository from remote:\n\t{exc}\n")
             raise typer.Exit(1)
 
         # 3. Handle Empty Remote (First-time use)
@@ -484,7 +484,7 @@ def sync():
                 repo.remotes.origin.push('main:main')
 
             except Exception as exc:
-                typer.echo(f"Failed to handle initialisation of empty repository:\n\t{exc}")
+                typer.echo(f"Failed to handle initialisation of empty repository:\n\t{exc}\n")
                 raise typer.Exit(1)
 
     # 4. The Sync Process
@@ -504,7 +504,7 @@ def sync():
 
         # Step 3: Push back to remote
         typer.echo("Sync [3/4]: Uploading synchronised history to GitHub...")
-        repo.index.add([BACKUP_EVENT_HISTORY.name]) # Use .name if it's a Path object
+        repo.index.add([BACKUP_EVENT_HISTORY.name]) 
         if repo.is_dirty():
             repo.index.commit("Sync: Combined local and remote histories")
             repo.remotes.origin.push()
@@ -515,10 +515,10 @@ def sync():
         typer.echo("Sync [4/4]: Rebuilding local database state from event history...")
         backup.update_state_from_local_event_history()
 
-        typer.echo("Done: Sync successful. Local state and remote state are now up to date.")
+        typer.echo("Done: Sync successful. Local state and remote state are now up to date.\n")
 
     except Exception as exc:
-        typer.echo(f"Error: An unexpected error occurred during sync:\n\t{exc}")
+        typer.echo(f"Error: An unexpected error occurred during sync:\n\t{exc}\n")
         raise typer.Exit(1)
 
 if __name__ == "__main__":

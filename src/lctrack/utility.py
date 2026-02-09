@@ -5,17 +5,10 @@ from typing import Tuple
 from .lc_client import fetch_all_problems
 from . import access
 
-
 DIFF_TO_INT = {
     "Hard" : 2, 
     "Medium" : 1,
     "Easy" : 0
-}
-
-INT_TO_DIFF = {
-    2 : "Hard",
-    1 : "Medium",
-    0 : "Easy"
 }
 
 def initial_sync() -> None:
