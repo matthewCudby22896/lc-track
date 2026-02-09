@@ -6,7 +6,7 @@ A CLI tool for tracking LeetCode problem completions that uses the [SuperMemo2](
 
 ### FEATURES
 
-##### Key Commands
+#### Key Commands
 
 Add and remove LC problems from the _active study set_ via:
 
@@ -58,7 +58,7 @@ See all previous entries (those added and not since removed) via:
 lc-track log
 ```
 
-##### Additional Commands
+#### Additional Commands
 
 List all problems currently in the active study set.
 ```shell
@@ -70,7 +70,7 @@ List all problems, within the active study set, currently due for review.
 lc-track ls-review
 ```
 
-##### Sync & Backup
+#### Sync & Backup
 
 Users can secure their study history and enable multi-device synchronisation using the following commands:
 ```shell
