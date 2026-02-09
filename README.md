@@ -1,8 +1,11 @@
 # lc-track CLI
 
-A CLI tool for tracking LeetCode problem completions that uses the [SuperMemo2](https://en.wikipedia.org/wiki/SuperMemo) spaced repition algorithm to determine the optimal date to add the LC problem back to the _active study set_.
+A CLI tool for tracking LeetCode problem completions that uses the [SuperMemo2](https://en.wikipedia.org/wiki/SuperMemo) spaced repetition algorithm to determine the optimal time at which to re-review the problem. 
 
-#### FEATURES
+The tool aims to remove the burden of deciding which LeetCode problem to study whilst optimising study by temporarily removing problems from the active study set until the SM-2 algorithms optimal re-review date has passed.
+
+
+### FEATURES
 
 ##### Key Commands
 
@@ -32,7 +35,7 @@ lc-track add-entry <problem-id> <confidence [0-5]>
 Choose confidence based of the following description:
 
 * `0` **Total Blackout** - You had no idea.
-* `1` **Familiar** - Wrong answer, but you recognized the solution.
+* `1` **Familiar** - Wrong answer, but you recognised the solution.
 * `2` **Easy to Remember** - Wrong answer, but you felt you *should* have known it.
 * `3` **Hard** - Correct, but it took significant mental effort.
 * `4` **Hesitant** - Correct, but you had to think for a moment.
@@ -68,7 +71,7 @@ List all problems, within the active study set, currently due for review.
 lc-track ls-review
 ```
 
-#### Sync & Backup
+##### Sync & Backup
 
 Users can secure their study history and enable multi-device synchronisation using the following commands:
 ```shell
