@@ -43,7 +43,7 @@ def fetch_all_problems() -> List[Dict[str, Any]]:
     """
 
     all_questions = []
-    payload = {
+    payload : Dict[str, Any]= {
         "query" : query,
         "variables" : {"categorySlug": "", "skip": skip, "limit": limit, "filters": {}}
     }

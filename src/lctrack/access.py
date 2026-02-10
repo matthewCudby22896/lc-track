@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Tuple, List, Optional
 
 from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
-from .constants import DB_FILE, LOCAL_EVENT_HISTORY, BACKUP_EVENT_HISTORY, TMP_EVENT_HISTORY
+from .constants import DB_FILE, LOCAL_EVENT_LOG, BACKUP_EVENT_LOG, TMP_EVENT_LOG
 
 
 DB_SCHEMA_STMT = """
@@ -55,9 +55,8 @@ CREATE TABLE IF NOT EXISTS app_state (
 def get_db_connection() -> sqlite3.Connection:
     con = sqlite3.connect(DB_FILE)
     con.execute("PRAGMA foreign_keys = ON;")
-    con.isolation_level = ""
+    con.isolation_level = "DEFERRED"
     return con
-
 
 def db_exists() -> bool:
     return os.path.exists(DB_FILE)
@@ -187,7 +186,7 @@ def get_problem_topics(con : sqlite3.Connection, problem_id : int) -> List[str]:
 # EVENT LOGGING
 
 def append_event(event : BaseEvent) -> None:
-    with open(LOCAL_EVENT_HISTORY, "a", encoding="utf-8") as f:
+    with open(LOCAL_EVENT_LOG, "a", encoding="utf-8") as f:
         json_event = json.dumps(event.to_dict())
         f.write(json_event + '\n')
 
