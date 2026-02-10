@@ -252,7 +252,7 @@ def add_entry(
                 next_rev_ts
             ) 
 
-            # Write event to event history, if this fails the above two changes will be rolled back
+            # Write event to event log, if this fails the above two changes will be rolled back
             access.append_event(
                 AddEntryEvent(str(uuid.uuid4()), now_ts, entry_uuid, problem.id, confidence)
             )
@@ -378,7 +378,7 @@ def set_pat(pat: str = typer.Argument(..., help="Your GitHub Personal Access Tok
 @app.command(name="setup-backup")
 def setup_backup():
     """
-    Setup access to a github repository to use as a remote backup of lc-track's event history.
+    Setup access to a github repository to use as a remote backup of lc-track's event log.
     """
     typer.echo(
         """
@@ -439,12 +439,12 @@ def setup_backup():
 @app.command(name="sync")
 def sync() -> None:
     """
-    Synchronises the local event history with the remote backup repository.
+    Synchronises the local event log with the remote backup repository.
 
     Performs a bidirectional sync sync:
-    1. Fetches and pulls the latest history from the remote GitHub repository
-    2. Merges local and remote event logs to create a unified history.
-    3. Push the combined history back to the remote repository
+    1. Fetches and pulls the latest log from the remote GitHub repository
+    2. Merges local and remote event logs to create a unified log.
+    3. Push the combined log back to the remote repository
     4. Replays the unified event log to rebuil the local SQLite database.
     """
     
@@ -477,7 +477,7 @@ def sync() -> None:
                 typer.echo("Setup: Initialising new remote repository with README.md...")
                 readme_file = BACKUP_REPO_DIR / "README.md"
                 with open(readme_file, 'w', encoding='utf-8') as f:
-                    f.write("# lc-track remote backup\n Event history backup for LeetCode tracking.") 
+                    f.write("# lc-track remote backup\n Event log backup for LeetCode tracking.") 
 
                 repo.index.add(['README.md'])
                 repo.index.commit("Initial setup")
@@ -490,20 +490,20 @@ def sync() -> None:
     # 4. The Sync Process
     try:
         # Step 1: Pull
-        typer.echo("Sync [1/4]: Fetching latest remote history...")
+        typer.echo("Sync [1/4]: Fetching latest remote log...")
         repo.remotes.origin.pull()
 
         # Step 2: Merge logic
         typer.echo("Sync [2/4]: Merging local and backup event logs...")
-        event_history : List[BaseEvent] = backup.merge_event_logs(BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY)
+        event_log : List[BaseEvent] = backup.merge_event_logs(BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY)
 
         # Atomic writes to both destinations
         for target_path in [BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY]:
-            backup.write_event_log(TMP_EVENT_HISTORY, event_history)
+            backup.write_event_log(TMP_EVENT_HISTORY, event_log)
             TMP_EVENT_HISTORY.replace(target_path)
 
         # Step 3: Push back to remote
-        typer.echo("Sync [3/4]: Uploading synchronised history to GitHub...")
+        typer.echo("Sync [3/4]: Uploading synchronised log to GitHub...")
         repo.index.add([BACKUP_EVENT_HISTORY.name]) 
         if repo.is_dirty():
             repo.index.commit("Sync: Combined local and remote histories")
@@ -512,8 +512,8 @@ def sync() -> None:
             typer.echo("Status: Remote already up to date.")
 
         # Step 4: Database Rebuild
-        typer.echo("Sync [4/4]: Rebuilding local database state from event history...")
-        backup.update_state_from_local_event_history()
+        typer.echo("Sync [4/4]: Rebuilding local database state from event log...")
+        backup.update_state_from_local_event_log()
 
         typer.echo("Done: Sync successful. Local state and remote state are now up to date.\n")
 

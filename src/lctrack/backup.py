@@ -65,7 +65,7 @@ def write_event_log(loc : Path, event_log : List[BaseEvent]) -> None:
             line = json.dumps(event.to_dict())
             f.write(line + '\n')
 
-def update_state_from_local_event_history() -> None:
+def update_state_from_local_event_log() -> None:
     """
     Steps:
     1. Clear the entries database table
@@ -77,7 +77,7 @@ def update_state_from_local_event_history() -> None:
     with access.get_db_connection() as con:
         access.clear_entries_table(con)
 
-        # 1. Load all events from the local version of the event history
+        # 1. Load all events from the local version of the event log
         events = load_event_log(LOCAL_EVENT_HISTORY)    
 
         # 2. Process all events in chronological order
