@@ -30,7 +30,5 @@ TMP_EVENT_LOG = DATA_DIR / "tmp_event_log.jsonl"
 YELLOW = "\033[33m" # MEDIUM
 GREEN = "\033[32m" # EASY
 RED = "\033[31m" # HARD
-PURPLE = "\033[35m" # For entry's uuid
-CYAN = "\033[36m" # For signifying a succesfully action
 BOLD_WHITE = "\033[1;37m"
 RESET = "\033[0m"

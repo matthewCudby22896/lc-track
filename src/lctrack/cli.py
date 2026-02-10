@@ -11,7 +11,7 @@ from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
 
 from . import access
 from .utility import initial_sync, date_from_ts, SM2, calculate_new_state
-from .constants import BACKUP_REPO_DIR, BACKUP_EVENT_LOG, LOCAL_EVENT_LOG, TMP_EVENT_LOG, YELLOW, GREEN, RED, PURPLE, CYAN, RESET, BOLD_WHITE
+from .constants import BACKUP_REPO_DIR, BACKUP_EVENT_LOG, LOCAL_EVENT_LOG, TMP_EVENT_LOG, YELLOW, GREEN, RED, RESET, BOLD_WHITE
 from . import backup
 from typing import Annotated, List
 
