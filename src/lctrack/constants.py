@@ -18,13 +18,13 @@ DATA_DIR = get_data_dir()
 DB_FILE = DATA_DIR / "database.db" # Where the current state of lc-track is stored
 
 # A local copy of the event log, to which new events are appended to
-LOCAL_EVENT_HISTORY = DATA_DIR / "event_log_local.jsonl" 
+LOCAL_EVENT_LOG = DATA_DIR / "event_log_local.jsonl" 
 
 # The directory to which the backup / sync github repo is cloned in to
 BACKUP_REPO_DIR = get_backup_repo_dir()
-BACKUP_EVENT_HISTORY = BACKUP_REPO_DIR / "event_log_backup.jsonl"
+BACKUP_EVENT_LOG = BACKUP_REPO_DIR / "event_log_backup.jsonl"
 
-TMP_EVENT_HISTORY = DATA_DIR / "tmp_event_log.jsonl"
+TMP_EVENT_LOG = DATA_DIR / "tmp_event_log.jsonl"
 
 # ANSI ESCAPE CODES (COLOURS + FORMATTING)
 YELLOW = "\033[33m" # MEDIUM

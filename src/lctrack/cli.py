@@ -11,7 +11,7 @@ from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
 
 from . import access
 from .utility import initial_sync, date_from_ts, SM2, calculate_new_state
-from .constants import BACKUP_REPO_DIR, BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY, TMP_EVENT_HISTORY, YELLOW, GREEN, RED, PURPLE, CYAN, RESET, BOLD_WHITE
+from .constants import BACKUP_REPO_DIR, BACKUP_EVENT_LOG, LOCAL_EVENT_LOG, TMP_EVENT_LOG, YELLOW, GREEN, RED, PURPLE, CYAN, RESET, BOLD_WHITE
 from . import backup
 from typing import Annotated, List
 
@@ -442,9 +442,9 @@ def sync() -> None:
     Synchronises the local event log with the remote backup repository.
 
     Performs a bidirectional sync sync:
-    1. Fetches and pulls the latest log from the remote GitHub repository
+    1. Fetches and pulls the latest event log from the remote GitHub repository
     2. Merges local and remote event logs to create a unified log.
-    3. Push the combined log back to the remote repository
+    3. Push the combined event log back to the remote repository
     4. Replays the unified event log to rebuil the local SQLite database.
     """
     
@@ -490,21 +490,21 @@ def sync() -> None:
     # 4. The Sync Process
     try:
         # Step 1: Pull
-        typer.echo("Sync [1/4]: Fetching latest remote log...")
+        typer.echo("Sync [1/4]: Fetching latest remote event log...")
         repo.remotes.origin.pull()
 
         # Step 2: Merge logic
         typer.echo("Sync [2/4]: Merging local and backup event logs...")
-        event_log : List[BaseEvent] = backup.merge_event_logs(BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY)
+        event_log : List[BaseEvent] = backup.merge_event_logs(BACKUP_EVENT_LOG, LOCAL_EVENT_LOG)
 
         # Atomic writes to both destinations
-        for target_path in [BACKUP_EVENT_HISTORY, LOCAL_EVENT_HISTORY]:
-            backup.write_event_log(TMP_EVENT_HISTORY, event_log)
-            TMP_EVENT_HISTORY.replace(target_path)
+        for target_path in [BACKUP_EVENT_LOG, LOCAL_EVENT_LOG]:
+            backup.write_event_log(TMP_EVENT_LOG, event_log)
+            TMP_EVENT_LOG.replace(target_path)
 
         # Step 3: Push back to remote
-        typer.echo("Sync [3/4]: Uploading synchronised log to GitHub...")
-        repo.index.add([BACKUP_EVENT_HISTORY.name]) 
+        typer.echo("Sync [3/4]: Uploading synchronised event log to GitHub...")
+        repo.index.add([BACKUP_EVENT_LOG.name]) 
         if repo.is_dirty():
             repo.index.commit("Sync: Combined local and remote histories")
             repo.remotes.origin.push()
@@ -515,7 +515,7 @@ def sync() -> None:
         typer.echo("Sync [4/4]: Rebuilding local database state from event log...")
         backup.update_state_from_local_event_log()
 
-        typer.echo("Done: Sync successful. Local state and remote state are now up to date.\n")
+        typer.echo("Done: Sync successful. Local state and remote state are now in synchronised state.\n")
 
     except Exception as exc:
         typer.echo(f"Error: An unexpected error occurred during sync:\n\t{exc}\n")

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Tuple
 
 
-from .constants import LOCAL_EVENT_HISTORY
+from .constants import LOCAL_EVENT_LOG
 from .ds import AddEntryEvent, BaseEvent, RmEntryEvent
 from .utility import SM2
 from . import access
@@ -78,7 +78,7 @@ def update_state_from_local_event_log() -> None:
         access.clear_entries_table(con)
 
         # 1. Load all events from the local version of the event log
-        events = load_event_log(LOCAL_EVENT_HISTORY)    
+        events = load_event_log(LOCAL_EVENT_LOG)    
 
         # 2. Process all events in chronological order
         for event in events:
