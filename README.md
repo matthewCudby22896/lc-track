@@ -97,3 +97,16 @@ When `lc-track sync` is executed, the following synchronisation protocol occurs:
 5. Algorithm Recalculation: The SM-2 state for every affected problem is recalculated by processing the reconstructed entries in sequential order.
 
 This ensures that the local environment perfectly reflects the global state defined by the synchronised event history, regardless of which device originally authored the events.
+
+### Dev Help
+
+```shell
+# Run the CLI directly via Python without installing the package
+python3 -m src.lc.track
+
+# Install the project in editable (development) mode
+pip3 install -e .
+
+# Run static type checking
+mypy
+```
