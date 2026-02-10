@@ -55,9 +55,8 @@ CREATE TABLE IF NOT EXISTS app_state (
 def get_db_connection() -> sqlite3.Connection:
     con = sqlite3.connect(DB_FILE)
     con.execute("PRAGMA foreign_keys = ON;")
-    con.isolation_level = ""
+    con.isolation_level = "DEFERRED"
     return con
-
 
 def db_exists() -> bool:
     return os.path.exists(DB_FILE)

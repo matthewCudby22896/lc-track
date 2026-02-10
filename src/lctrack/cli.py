@@ -44,7 +44,7 @@ def main():
                 typer.echo(f"{BOLD_WHITE}lc-track setup complete.{RESET}\n")
 
 @app.command(name="study")
-def study():
+def study() -> None:
     """Select a random problem from the set of active problems that are due for review."""
     with access.get_db_connection() as con:
         problems = access.get_for_review_problems(con)
@@ -64,7 +64,7 @@ def study():
     typer.echo(f"To study: LC{chosen.id}. {chosen.title} {colour_code}[{chosen.difficulty_txt}]{RESET}\n")
 
 @app.command(name="ls-active")
-def ls_active():
+def ls_active() -> None:
     """ List all problems currently in the active study set. """
     with access.get_db_connection() as con:
         active_problems = access.get_active_problems(con)
@@ -437,7 +437,7 @@ def setup_backup():
     typer.echo("Success: Sync configuration saved\n")
 
 @app.command(name="sync")
-def sync():
+def sync() -> None:
     """
     Synchronises the local event history with the remote backup repository.
 

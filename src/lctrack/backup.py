@@ -21,32 +21,47 @@ def merge_event_logs(hist1 : Path, hist2 : Path) -> List[BaseEvent]:
     return combined_events
 
 def load_event_log(path : Path) -> List[BaseEvent]:
+    """ Load an event log from a JSON lines (.jsonl) file.
+
+    Each non-empty line is parsed as JSON and converted into a subclass of BaseEvent.
+    """
     if not path.exists():
         return []
     
-    events = []
+    events : List[BaseEvent] = []
     with open(path, "r", encoding="utf-8") as f:
         for ln, line in enumerate(f, 1): 
-            line = line.strip() 
+            stripped_line : str = line.strip() 
             if not line:
                 continue
             try:
-                events.append(jsonl_to_event(json.loads(line)))
+                events.append(jsonl_to_event(json.loads(stripped_line)))
 
             except json.JSONDecodeError as exc:
                 raise Exception(f"Failed to parse ln {ln} of {f}: {exc}") 
 
     return events            
 
-def jsonl_to_event(jsonl : Dict[str, Any]) -> BaseEvent:
-    if jsonl['EVENT_TYPE'] == "ADD_ENTRY":
-        return AddEntryEvent.from_dict(jsonl)
-    elif json['EVENT_TYPE'] == "RM_ENTRY":
-        return RmEntryEvent.from_dict(jsonl)
+def jsonl_to_event(_jsonl : Dict[str, Any]) -> BaseEvent:
+    """ Convert a raw JSONL event dictionary into an instance of a concrete subclass of BaseEvent.
 
-def write_event_log(loc : Path, event_history : List[BaseEvent]) -> None:
+    The event type is determined by the value of the 'EVENT_TYPE' key.
+    """
+    if _jsonl.get('EVENT_TYPE', None) is None:
+        raise ValueError(f"event in _jsonl form is lacking required 'EVENT_TYPE' key: {_jsonl}")
+
+    if _jsonl['EVENT_TYPE'] == "ADD_ENTRY":
+        return AddEntryEvent.from_dict(_jsonl)
+    elif _jsonl['EVENT_TYPE'] == "RM_ENTRY":
+        return RmEntryEvent.from_dict(_jsonl)
+    else:
+        raise ValueError(f"event in _jsonl form has unexpected event type: 'EVENT_TYPE : {_jsonl['EVENT_TYPE']}'")
+
+def write_event_log(loc : Path, event_log : List[BaseEvent]) -> None:
+    """ Writes an event log consisting of a list of events to the specified location.
+    """
     with open(loc, 'w', encoding="utf-8") as f:
-        for event in event_history: 
+        for event in event_log: 
             line = json.dumps(event.to_dict())
             f.write(line + '\n')
 
@@ -74,7 +89,7 @@ def update_state_from_local_event_history() -> None:
         # 3. Update the state of all problems based of the entries under the entries table
         entries = access.get_all_entries(con) 
 
-        sm2_states : Dict[int, Tuple[int, float, int]] = {} # problem_id -> SM2 state (n, EF, I, last_review_ts, next_review_ts)
+        sm2_states : Dict[int, Tuple[int, float, int, int, int]] = {} # problem_id -> SM2 state (n, EF, I, last_review_ts, next_review_ts)
 
         for E in entries:    
             if E.problem_id not in sm2_states:
