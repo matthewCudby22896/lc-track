@@ -32,18 +32,18 @@ class BaseEvent(ABC):  # Inherit from ABC
     # This forces subclasses to define EVENT_TYPE
     @property
     @abstractmethod
-    def EVENT_TYPE(self) -> str:
+    def event_type(self) -> str:
         pass
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
-        data["EVENT_TYPE"] = self.EVENT_TYPE
+        data["EVENT_TYPE"] = self.event_type
         return data
 
 
 @dataclass
 class AddEntryEvent(BaseEvent):
-    EVENT_TYPE: ClassVar[Final[str]] = "ADD_ENTRY"
+    event_type: ClassVar[Final[str]] = "ADD_ENTRY"
 
     entry_uuid: UUID
     problem_id: int

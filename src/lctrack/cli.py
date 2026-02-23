@@ -115,7 +115,7 @@ def ls_for_review():
 
 @app.command(name="activate")
 def activate(id: int) -> None:
-    """ Add a problem to the active study set. 
+    """ Add a problem to the active study set.
     Usage: lc-track activate <problem-id>
     """
     with access.get_db_connection() as con:
@@ -137,7 +137,7 @@ def activate(id: int) -> None:
 
 @app.command(name="deactivate")
 def deactivate(id: int) -> None:
-    """ Remove a problem from the active study set. 
+    """ Remove a problem from the active study set.
     Usage: lc-track deactivate <problem-id>
     """
     with access.get_db_connection() as con:
@@ -159,7 +159,7 @@ def deactivate(id: int) -> None:
 
 @app.command(name="details")
 def details(id: int) -> None:
-    """ Show the details of a LC problem. 
+    """ Show the details of a LC problem.
     Usage: lc-track details <problem-id>
     """
 

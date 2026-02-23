@@ -140,7 +140,7 @@ def bulk_update_problem_state(
     cur = con.cursor()
     try:
         cur.executemany("""
-            UPDATE problems 
+            UPDATE problems
             SET n = ?, EF = ?, I = ?, last_review_at = ?, next_review_at = ?
             WHERE id = ?
         """, new_states)
@@ -227,7 +227,7 @@ def get_entry(con : sqlite3.Connection, entry_uuid : str) -> Entry | None:
     cur = con.cursor()
     try:
         cur.execute("""
-            SELECT uuid, problem_id, confidence, ts  
+            SELECT uuid, problem_id, confidence, ts
             FROM entries
             WHERE uuid = ?
         """, (entry_uuid,))
