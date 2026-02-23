@@ -1,14 +1,13 @@
-import os
-import json
 import datetime
+import json
+import os
 import sqlite3
-import git    
 from pathlib import Path
-from typing import Tuple, List, Optional
 
-from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
+import git
+
 from .constants import DB_FILE, LOCAL_EVENT_LOG
-
+from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
 
 DB_SCHEMA_STMT = """
 CREATE TABLE IF NOT EXISTS problems (
@@ -82,7 +81,7 @@ def check_repo(path : Path) -> bool:
 
 # TABLE : problems
 
-def get_for_review_problems(con : sqlite3.Connection) -> List[Problem]:
+def get_for_review_problems(con : sqlite3.Connection) -> list[Problem]:
     now = int(datetime.datetime.now().timestamp())
     cur = con.cursor()
     try:
@@ -97,7 +96,7 @@ def get_for_review_problems(con : sqlite3.Connection) -> List[Problem]:
 
     return for_review
 
-def get_active_problems(con : sqlite3.Connection) -> List[Problem]:
+def get_active_problems(con : sqlite3.Connection) -> list[Problem]:
     cur = con.cursor()
     try:
         cur.execute("SELECT * FROM problems WHERE active = 1")
@@ -108,11 +107,11 @@ def get_active_problems(con : sqlite3.Connection) -> List[Problem]:
 
     return active
 
-def update_SM2_state(con : sqlite3.Connection, 
+def update_SM2_state(con : sqlite3.Connection,
                      id : int,
                      n : int,
                      ef : float,
-                     i : int, 
+                     i : int,
                      last_review_ts : int,
                      next_review_ts : int) -> None:
     cur = con.cursor()
@@ -130,8 +129,8 @@ def update_SM2_state(con : sqlite3.Connection,
         cur.close()
 
 def bulk_update_problem_state(
-        con : sqlite3.Connection, 
-        new_states : List[Tuple[int, float, int, int, int, int]]) -> None:
+        con : sqlite3.Connection,
+        new_states : list[tuple[int, float, int, int, int, int]]) -> None:
     """
     Bulk update problems table with problem_states
 
@@ -148,17 +147,17 @@ def bulk_update_problem_state(
     finally:
         cur.close()
 
-def set_active(con :sqlite3.Connection, problem_id : int, active: bool) -> None:  
+def set_active(con :sqlite3.Connection, problem_id : int, active: bool) -> None:
     cur = con.cursor()
     try:
         cur.execute(
-            "UPDATE problems SET active = ? WHERE id = ?", 
+            "UPDATE problems SET active = ? WHERE id = ?",
             (active, problem_id)
         )
     finally:
         cur.close()
 
-def get_problem(con : sqlite3.Connection, problem_id: int) -> Optional[Problem]:
+def get_problem(con : sqlite3.Connection, problem_id: int) -> Problem | None:
     cur = con.cursor()
     try:
         cur.execute("SELECT * FROM problems WHERE id = ?", (problem_id,))
@@ -167,7 +166,7 @@ def get_problem(con : sqlite3.Connection, problem_id: int) -> Optional[Problem]:
         cur.close()
     return Problem.from_row(row) if row else None
 
-def get_problem_topics(con : sqlite3.Connection, problem_id : int) -> List[str]:
+def get_problem_topics(con : sqlite3.Connection, problem_id : int) -> list[str]:
     cur = con.cursor()
     try:
         cur.execute("""
@@ -221,10 +220,10 @@ def add_entry(con : sqlite3.Connection, entry : Entry) -> None:
             """,
             entry.to_row()
         )
-    finally: 
+    finally:
         cur.close()
 
-def get_entry(con : sqlite3.Connection, entry_uuid : str) -> Optional[Entry]:
+def get_entry(con : sqlite3.Connection, entry_uuid : str) -> Entry | None:
     cur = con.cursor()
     try:
         cur.execute("""
@@ -233,26 +232,26 @@ def get_entry(con : sqlite3.Connection, entry_uuid : str) -> Optional[Entry]:
             WHERE uuid = ?
         """, (entry_uuid,))
 
-        row : Optional[Tuple[str, int, int, int]] = cur.fetchone()
+        row : tuple[str, int, int, int] | None = cur.fetchone()
     finally:
         cur.close()
 
     return Entry.from_row(row) if row else None
 
-def get_all_entries(con : sqlite3.Connection) -> List[Entry]:
+def get_all_entries(con : sqlite3.Connection) -> list[Entry]:
     cur = con.cursor()
-    try: 
+    try:
         cur.execute("SELECT uuid, problem_id, confidence, ts FROM entries")
 
         return [Entry.from_row(row) for row in cur.fetchall()]
     finally:
         cur.close()
 
-def get_entries_by_problem_id(con : sqlite3.Connection, problem_id : int) -> List[Entry]:
+def get_entries_by_problem_id(con : sqlite3.Connection, problem_id : int) -> list[Entry]:
     cur = con.cursor()
     try:
         cur.execute("SELECT uuid, problem_id, confidence, ts FROM entries WHERE problem_id = ?", (problem_id,))
-        entries : List[Entry] = [Entry.from_row(row) for row in cur.fetchall()]
+        entries : list[Entry] = [Entry.from_row(row) for row in cur.fetchall()]
     finally:
         cur.close()
 
@@ -272,13 +271,13 @@ def clear_entries_table(con : sqlite3.Connection) -> None:
     finally:
         cur.close()
 
-# TABLE : state 
+# TABLE : state
 
-def get_state(con : sqlite3.Connection, key : str) -> Optional[str]:
+def get_state(con : sqlite3.Connection, key : str) -> str | None:
     try:
         cur = con.execute("SELECT value FROM app_state WHERE key = ?", (key, ))
         row = cur.fetchone()
-    
+
         return row[0] if row else None
 
     finally:
@@ -292,7 +291,7 @@ def set_state(con : sqlite3.Connection, key: str, value: str) -> None:
         cur.close()
 
 
-    
+
 
 
 

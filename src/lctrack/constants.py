@@ -1,5 +1,6 @@
-from platformdirs import PlatformDirs
 from pathlib import Path
+
+from platformdirs import PlatformDirs
 
 dirs = PlatformDirs('lc-track','lc-track')
 
@@ -18,7 +19,7 @@ DATA_DIR = get_data_dir()
 DB_FILE = DATA_DIR / "database.db" # Where the current state of lc-track is stored
 
 # A local copy of the event log, to which new events are appended to
-LOCAL_EVENT_LOG = DATA_DIR / "event_log_local.jsonl" 
+LOCAL_EVENT_LOG = DATA_DIR / "event_log_local.jsonl"
 
 # The directory to which the backup / sync github repo is cloned in to
 BACKUP_REPO_DIR = get_backup_repo_dir()

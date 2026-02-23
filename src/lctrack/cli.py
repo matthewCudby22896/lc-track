@@ -1,20 +1,28 @@
-import logging
 import datetime
-import typer
+import logging
 import random
-import github
-import git
-import uuid
 import subprocess
+import uuid
+from typing import Annotated
 
+import git
+import github
+import typer
+
+from . import access, backup
+from .constants import (
+    BACKUP_EVENT_LOG,
+    BACKUP_REPO_DIR,
+    BOLD_WHITE,
+    GREEN,
+    LOCAL_EVENT_LOG,
+    RED,
+    RESET,
+    TMP_EVENT_LOG,
+    YELLOW,
+)
 from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
-
-from . import access
-from .utility import initial_sync, date_from_ts, SM2, calculate_new_state
-from .constants import BACKUP_REPO_DIR, BACKUP_EVENT_LOG, LOCAL_EVENT_LOG, TMP_EVENT_LOG, YELLOW, GREEN, RED, RESET, BOLD_WHITE
-from . import backup
-from typing import Annotated, List
-
+from .utility import SM2, calculate_new_state, date_from_ts, initial_sync
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 app = typer.Typer(add_completion=False)
@@ -34,11 +42,11 @@ def main():
     LeetCode-Track CLI
     """
     if not access.db_exists():
-        typer.echo("Initialising lc-track local database...") 
+        typer.echo("Initialising lc-track local database...")
         access.init_db()
 
     if access.db_exists():
-        with access.get_db_connection() as con: 
+        with access.get_db_connection() as con:
             if access.get_state(con, "initial_sync") != "complete":
                 initial_sync()
                 typer.echo(f"{BOLD_WHITE}lc-track setup complete.{RESET}\n")
@@ -54,7 +62,7 @@ def study() -> None:
         return
 
     chosen : Problem = random.choice(problems)
-    
+
     colour_code = colours.get(chosen.difficulty_txt)
 
     if not colour_code:
@@ -73,7 +81,7 @@ def ls_active() -> None:
         typer.echo("Your active study set is empty. Use 'lc-track activate <id>' to add some!")
         return
 
-    header = f"{BOLD_WHITE}Active Study Set: ({len(active_problems)} problems){RESET}\n" 
+    header = f"{BOLD_WHITE}Active Study Set: ({len(active_problems)} problems){RESET}\n"
 
     lines = [header] + [
         f"LC{p.id:<4}. {p.title:<50} {colours[p.difficulty_txt]}{p.difficulty_txt}{RESET}\n"
@@ -81,7 +89,7 @@ def ls_active() -> None:
     ]
 
     text = "".join(lines)
-    
+
     typer.echo(text)
 
 @app.command(name="ls-review")
@@ -93,8 +101,8 @@ def ls_for_review():
     if not due_problems:
         typer.echo("No problems due for review. You're all caught up!")
         raise typer.Exit(0)
-    
-    header = f"{BOLD_WHITE}Due For Review: ({len(due_problems)} problems){RESET}\n" 
+
+    header = f"{BOLD_WHITE}Due For Review: ({len(due_problems)} problems){RESET}\n"
 
     lines = [header] + [
         f"LC{p.id:<4}. {p.title:<50} {colours[p.difficulty_txt]}{p.difficulty_txt}{RESET}\n"
@@ -102,7 +110,7 @@ def ls_for_review():
     ]
 
     output = "".join(lines)
-    
+
     typer.echo(output)
 
 @app.command(name="activate")
@@ -112,7 +120,7 @@ def activate(id: int) -> None:
     """
     with access.get_db_connection() as con:
         problem = access.get_problem(con, id)
-    
+
         if not problem:
             typer.echo(f"No problem found with id: {id}\n")
             raise typer.exit(1) from None
@@ -134,7 +142,7 @@ def deactivate(id: int) -> None:
     """
     with access.get_db_connection() as con:
         problem = access.get_problem(con, id)
-        
+
         if not problem:
             typer.echo(f"No problem found with id: {id}\n")
             raise typer.exit(1) from None
@@ -159,8 +167,8 @@ def details(id: int) -> None:
         problem = access.get_problem(con, id)
         if problem:
             topics = access.get_problem_topics(con, id)
-    
-    if not problem: 
+
+    if not problem:
         typer.echo(f"No problem found with id: {id}")
         raise typer.exit(1) from None
 
@@ -221,11 +229,11 @@ def add_entry(
 
     # Ensure the problem exists
     with access.get_db_connection() as con:
-        problem = access.get_problem(con, id) 
+        problem = access.get_problem(con, id)
     if not problem:
         typer.echo(f"No problem found with id: {id}")
         raise typer.exit(1) from None
-    
+
     assert isinstance(problem, Problem)
 
     # Calculate the new state of the problem, based of the provided confidence rating (0-5)
@@ -233,7 +241,7 @@ def add_entry(
     entry_uuid = str(uuid.uuid4())
 
     # Update program state in single atomic transaction
-    try: 
+    try:
         con = access.get_db_connection()
         with con:
             # Insert entry (ADD_ENTRY event logged as side effect)
@@ -250,7 +258,7 @@ def add_entry(
                 i,
                 now_ts,
                 next_rev_ts
-            ) 
+            )
 
             # Write event to event log, if this fails the above two changes will be rolled back
             access.append_event(
@@ -284,7 +292,7 @@ def rm_entry(entry_uuid : str) -> None:
     now = int(datetime.datetime.now().timestamp())
 
     # 1. Check than an entry with the uuid exists
-    try: 
+    try:
         con = access.get_db_connection()
         entry = access.get_entry(con, entry_uuid)
     except Exception as exc:
@@ -296,17 +304,17 @@ def rm_entry(entry_uuid : str) -> None:
         raise typer.exit(1) from None
 
     problem_id = entry.problem_id
-    
+
     # 2. Update program state in a single atomic transaction
     try:
         with con:
             access.rm_entry(con, entry_uuid)
 
-            # Get all of the entries with the problem_id    
-            entries : List[Entry] = access.get_entries_by_problem_id(con, problem_id)
+            # Get all of the entries with the problem_id
+            entries : list[Entry] = access.get_entries_by_problem_id(con, problem_id)
 
             # TODO: Move to seperate utility method
-            n, ef, i = 0, 2.5, 0 
+            n, ef, i = 0, 2.5, 0
             if not entries:
                 last_review_ts, next_review_ts = 0, 0
             else:
@@ -338,10 +346,10 @@ def log():
 
     entries.sort(key = lambda x : x.ts, reverse=True)
     output_lines = []
-    
+
     for E in entries:
         date_str = date_from_ts(E.ts)
-        w = 12 
+        w = 12
         entry_block = (
             f"{YELLOW}entry {E.uuid}{RESET}\n"
             f"{'Problem ID:':<{w}} {E.problem_id}\n"
@@ -372,7 +380,7 @@ def set_pat(pat: str = typer.Argument(..., help="Your GitHub Personal Access Tok
     except Exception as exc:
         typer.echo(f"An unexpected exception has occurred: {exc}\n")
         raise typer.exit(1) from None
-    
+
     typer.echo("Success: GitHub PAT has been saved.")
 
 @app.command(name="setup-backup")
@@ -397,12 +405,12 @@ def setup_backup():
     g = github.Github(pat)
 
     # 3. Connection & Authentication
-    try: 
+    try:
         user = g.get_user()
         username = user.login
         typer.echo(f"Connected: Authenticated as {username}")
     except github.BadCredentialsException:
-        typer.echo("Error: Invalid PAT. Please verify your token and try again.") 
+        typer.echo("Error: Invalid PAT. Please verify your token and try again.")
         with access.get_db_connection() as con:
             access.set_state(con, 'SYNC_SETUP', 'FAILURE')
         raise typer.exit(1) from None
@@ -415,8 +423,8 @@ def setup_backup():
         typer.echo(f"Error: Repository '{repo_name}' not found. Check name and PAT scopes.")
         with access.get_db_connection() as con:
             access.set_state(con, 'SYNC_SETUP', 'FAILURE')
-        raise typer.exit(1) from None 
-    
+        raise typer.exit(1) from None
+
     # 5. Permission Verification
     permissions = repo.permissions
     if not (permissions.push and permissions.pull):
@@ -424,7 +432,7 @@ def setup_backup():
         with access.get_db_connection() as con:
             access.set_state(con, 'SYNC_SETUP', 'FAILURE')
         raise typer.exit(1) from None
-    
+
     typer.echo("Connected: Read and Write access confirmed")
 
     # 6. Finalise
@@ -433,7 +441,7 @@ def setup_backup():
         access.set_state(con, 'BACKUP_REPO_NAME', repo_name)
         access.set_state(con, 'USERNAME', username)
         access.set_state(con, 'SYNC_SETUP', 'SUCCESS')
-    
+
     typer.echo("Success: Sync configuration saved\n")
 
 @app.command(name="sync")
@@ -447,14 +455,14 @@ def sync() -> None:
     3. Push the combined event log back to the remote repository
     4. Replays the unified event log to rebuil the local SQLite database.
     """
-    
+
     # 1. Configuration Check
     with access.get_db_connection() as con:
         if access.get_state(con, 'SYNC_SETUP') != 'SUCCESS':
             typer.echo("Error: Sync not configured. Run `lc-track setup-backup` first.\n")
             raise typer.exit(1) from None
 
-        pat = access.get_state(con, 'PAT') 
+        pat = access.get_state(con, 'PAT')
         repo_name = access.get_state(con, 'BACKUP_REPO_NAME')
         username = access.get_state(con, 'USERNAME')
         auth_url = f"https://{pat}@github.com/{username}/{repo_name}.git"
@@ -477,7 +485,7 @@ def sync() -> None:
                 typer.echo("Setup: Initialising new remote repository with README.md...")
                 readme_file = BACKUP_REPO_DIR / "README.md"
                 with open(readme_file, 'w', encoding='utf-8') as f:
-                    f.write("# lc-track remote backup\n Event log backup for LeetCode tracking.") 
+                    f.write("# lc-track remote backup\n Event log backup for LeetCode tracking.")
 
                 repo.index.add(['README.md'])
                 repo.index.commit("Initial setup")
@@ -495,7 +503,7 @@ def sync() -> None:
 
         # Step 2: Merge logic
         typer.echo("Sync [2/4]: Merging local and backup event logs...")
-        event_log : List[BaseEvent] = backup.merge_event_logs(BACKUP_EVENT_LOG, LOCAL_EVENT_LOG)
+        event_log : list[BaseEvent] = backup.merge_event_logs(BACKUP_EVENT_LOG, LOCAL_EVENT_LOG)
 
         # Atomic writes to both destinations
         for target_path in [BACKUP_EVENT_LOG, LOCAL_EVENT_LOG]:
@@ -504,7 +512,7 @@ def sync() -> None:
 
         # Step 3: Push back to remote
         typer.echo("Sync [3/4]: Uploading synchronised event log to GitHub...")
-        repo.index.add([BACKUP_EVENT_LOG.name]) 
+        repo.index.add([BACKUP_EVENT_LOG.name])
         if repo.is_dirty():
             repo.index.commit("Sync: Combined local and remote histories")
             repo.remotes.origin.push()
