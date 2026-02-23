@@ -36,4 +36,7 @@ quote-style = "single"
 [tool.ruff]
 src = ["src/lc-track"]
 
+[tool.mypy]
+packages = ["lctrack"]
+mypy_path = "src"
 
