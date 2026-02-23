@@ -1,8 +1,8 @@
+from typing import Any
+
 import requests
 import typer
 from rich.progress import track
-
-from typing import Any, Dict, List
 
 ALL_PROBLEMS_URL = "https://leetcode.com/api/problems/all/"
 GRAPHQL_ENDPOINT = "https://leetcode.com/graphql"
@@ -14,11 +14,11 @@ session.headers.update({
     "Referer": "https://leetcode.com"
 })
 
-def fetch_all_problems() -> List[Dict[str, Any]]: 
+def fetch_all_problems() -> list[dict[str, Any]]:
     url = "https://leetcode.com/graphql/"
     limit = 100
     skip = 0
-    
+
     query = """
     query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {
       problemsetQuestionList: questionList(
@@ -43,7 +43,7 @@ def fetch_all_problems() -> List[Dict[str, Any]]:
     """
 
     all_questions = []
-    payload : Dict[str, Any]= {
+    payload : dict[str, Any]= {
         "query" : query,
         "variables" : {"categorySlug": "", "skip": skip, "limit": limit, "filters": {}}
     }
@@ -73,16 +73,16 @@ def fetch_all_problems() -> List[Dict[str, Any]]:
 
           if total is None:
               total = data['data']['problemsetQuestionList']['totalNum'] # The total number of questions
-          
+
           # Extract the problems in this batch
           question_batch = data['data']['problemsetQuestionList']['questions']
           all_questions.extend(question_batch)
-        
+
 
     except Exception as exc:
       typer.echo(f"An unexpected exception occured whilst fetching problems from leetcode.com: {exc}")
-      raise typer.Exit(1)
-    
+      raise typer.Exit(1) from None
+
     typer.echo(f"All {len(all_questions)} problems succesfully fetched and stored from leetcode.com")
 
     return all_questions

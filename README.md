@@ -109,4 +109,7 @@ pip3 install -e .
 
 # Run static type checking
 mypy
+
+# Run linter
+ruff check
 ```

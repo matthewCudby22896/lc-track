@@ -1,11 +1,11 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
-from typing import ClassVar, Final, Optional, Tuple, Dict, Any
+from typing import Any, ClassVar, Final, Self
 
 UUID = str
 
-@dataclass 
+@dataclass
 class Entry:
     uuid : UUID
     problem_id : int
@@ -13,15 +13,15 @@ class Entry:
     ts : int
 
     @classmethod
-    def from_row(cls, row: tuple) -> Entry:
-        return Entry(
+    def from_row(cls, row: tuple) -> Self:
+        return cls(
             uuid=row[0],
             problem_id=row[1],
             confidence=row[2],
             ts=row[3]
         )
-    
-    def to_row(self) -> Tuple[str, int, int, int]:
+
+    def to_row(self) -> tuple[str, int, int, int]:
         return (self.uuid, self.problem_id, self.confidence, self.ts)
 
 @dataclass
@@ -32,26 +32,26 @@ class BaseEvent(ABC):  # Inherit from ABC
     # This forces subclasses to define EVENT_TYPE
     @property
     @abstractmethod
-    def EVENT_TYPE(self) -> str:
+    def event_type(self) -> str:
         pass
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
-        data["EVENT_TYPE"] = self.EVENT_TYPE
+        data["EVENT_TYPE"] = self.event_type
         return data
-    
+
 
 @dataclass
 class AddEntryEvent(BaseEvent):
-    EVENT_TYPE: ClassVar[Final[str]] = "ADD_ENTRY"
-    
+    event_type: ClassVar[Final[str]] = "ADD_ENTRY"
+
     entry_uuid: UUID
     problem_id: int
     confidence: int
 
     @classmethod
-    def from_dict(cls, _dict : dict) -> AddEntryEvent:
-        return AddEntryEvent(
+    def from_dict(cls, _dict : dict) -> Self:
+        return cls(
             _dict['uuid'],
             _dict['ts'],
             _dict['entry_uuid'],
@@ -61,12 +61,12 @@ class AddEntryEvent(BaseEvent):
 
 @dataclass
 class RmEntryEvent(BaseEvent):
-    EVENT_TYPE: ClassVar[Final[str]] = "RM_ENTRY"
+    event_type: ClassVar[Final[str]] = "RM_ENTRY"
     target_entry_uuid: UUID
 
     @classmethod
-    def from_dict(cls, _dict : dict) -> RmEntryEvent:
-        return RmEntryEvent(
+    def from_dict(cls, _dict : dict) -> Self:
+        return cls(
             _dict['uuid'],
             _dict['ts'],
             _dict['target_entry_uuid']
@@ -79,7 +79,7 @@ class Problem:
     title : str
     difficulty : int
     difficulty_txt : str
-    last_review_at : Optional[int]
+    last_review_at : int | None
     next_review_at : int
     ef : float
     i : int
@@ -87,7 +87,7 @@ class Problem:
     active : bool
 
     @classmethod
-    def from_row(cls, row: tuple) -> Problem:
+    def from_row(cls, row: tuple) -> Self:
         return cls(
             id=row[0],
             slug=row[1],
@@ -101,10 +101,10 @@ class Problem:
             n=row[8],
             active=bool(row[9])
         )
-    
+
 
 DIFF_TO_INT = {
-    "Hard" : 2, 
+    "Hard" : 2,
     "Medium" : 1,
     "Easy" : 0
 }

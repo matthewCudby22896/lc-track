@@ -1,18 +1,18 @@
 
 import json
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import Any
 
-
+from . import access
 from .constants import LOCAL_EVENT_LOG
 from .ds import AddEntryEvent, BaseEvent, RmEntryEvent
 from .utility import SM2
-from . import access
 
-def merge_event_logs(hist1 : Path, hist2 : Path) -> List[BaseEvent]:
+
+def merge_event_logs(hist1 : Path, hist2 : Path) -> list[BaseEvent]:
     # Load both event histories into memory
-    events_local : List[BaseEvent] = load_event_log(hist1)
-    events_backup : List[BaseEvent] = load_event_log(hist2)
+    events_local : list[BaseEvent] = load_event_log(hist1)
+    events_backup : list[BaseEvent] = load_event_log(hist2)
 
     # Merge the two into a single list of unique events, sorted by ts
     combined_events = list({event.uuid: event for event in events_backup + events_local}.values())
@@ -20,29 +20,29 @@ def merge_event_logs(hist1 : Path, hist2 : Path) -> List[BaseEvent]:
 
     return combined_events
 
-def load_event_log(path : Path) -> List[BaseEvent]:
+def load_event_log(path : Path) -> list[BaseEvent]:
     """ Load an event log from a JSON lines (.jsonl) file.
 
     Each non-empty line is parsed as JSON and converted into a subclass of BaseEvent.
     """
     if not path.exists():
         return []
-    
-    events : List[BaseEvent] = []
-    with open(path, "r", encoding="utf-8") as f:
-        for ln, line in enumerate(f, 1): 
-            stripped_line : str = line.strip() 
+
+    events : list[BaseEvent] = []
+    with open(path, encoding="utf-8") as f:
+        for ln, line in enumerate(f, 1):
+            stripped_line : str = line.strip()
             if not line:
                 continue
             try:
                 events.append(jsonl_to_event(json.loads(stripped_line)))
 
             except json.JSONDecodeError as exc:
-                raise Exception(f"Failed to parse ln {ln} of {f}: {exc}") 
+                raise Exception(f"Failed to parse ln {ln} of {f}: {exc}") from None
 
-    return events            
+    return events
 
-def jsonl_to_event(_jsonl : Dict[str, Any]) -> BaseEvent:
+def jsonl_to_event(_jsonl : dict[str, Any]) -> BaseEvent:
     """ Convert a raw JSONL event dictionary into an instance of a concrete subclass of BaseEvent.
 
     The event type is determined by the value of the 'EVENT_TYPE' key.
@@ -57,11 +57,11 @@ def jsonl_to_event(_jsonl : Dict[str, Any]) -> BaseEvent:
     else:
         raise ValueError(f"event in _jsonl form has unexpected event type: 'EVENT_TYPE : {_jsonl['EVENT_TYPE']}'")
 
-def write_event_log(loc : Path, event_log : List[BaseEvent]) -> None:
+def write_event_log(loc : Path, event_log : list[BaseEvent]) -> None:
     """ Writes an event log consisting of a list of events to the specified location.
     """
     with open(loc, 'w', encoding="utf-8") as f:
-        for event in event_log: 
+        for event in event_log:
             line = json.dumps(event.to_dict())
             f.write(line + '\n')
 
@@ -78,20 +78,20 @@ def update_state_from_local_event_log() -> None:
         access.clear_entries_table(con)
 
         # 1. Load all events from the local version of the event log
-        events = load_event_log(LOCAL_EVENT_LOG)    
+        events = load_event_log(LOCAL_EVENT_LOG)
 
         # 2. Process all events in chronological order
         for event in events:
             access.process_event(con, event)
 
-        print(f"All events processed")
-        
+        print("All events processed")
+
         # 3. Update the state of all problems based of the entries under the entries table
-        entries = access.get_all_entries(con) 
+        entries = access.get_all_entries(con)
 
-        sm2_states : Dict[int, Tuple[int, float, int, int, int]] = {} # problem_id -> SM2 state (n, EF, I, last_review_ts, next_review_ts)
+        sm2_states : dict[int, tuple[int, float, int, int, int]] = {} # problem_id -> SM2 state (n, EF, I, last_review_ts, next_review_ts)
 
-        for E in entries:    
+        for E in entries:
             if E.problem_id not in sm2_states:
                 n, EF, I = (0, 2.5, 0)
             n, EF, I = SM2(E.confidence, n, EF, I)
@@ -101,7 +101,7 @@ def update_state_from_local_event_log() -> None:
             sm2_states[E.problem_id] = (n, EF, I, last_review_at, next_review_at)
 
         new_states = [
-            (v[0], v[1], v[2], v[3], v[4], k) 
+            (v[0], v[1], v[2], v[3], v[4], k)
             for k, v in sm2_states.items()
         ]
 
