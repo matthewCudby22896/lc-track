@@ -1,7 +1,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
-from typing import ClassVar, Final, Optional, Tuple, Dict, Any
+from typing import ClassVar, Final, Optional, Self, Tuple, Dict, Any
 
 UUID = str
 
@@ -13,7 +13,7 @@ class Entry:
     ts : int
 
     @classmethod
-    def from_row(cls, row: tuple) -> Entry:
+    def from_row(cls, row: tuple) -> Self:
         return Entry(
             uuid=row[0],
             problem_id=row[1],
@@ -50,7 +50,7 @@ class AddEntryEvent(BaseEvent):
     confidence: int
 
     @classmethod
-    def from_dict(cls, _dict : dict) -> AddEntryEvent:
+    def from_dict(cls, _dict : dict) -> Self:
         return AddEntryEvent(
             _dict['uuid'],
             _dict['ts'],
@@ -65,7 +65,7 @@ class RmEntryEvent(BaseEvent):
     target_entry_uuid: UUID
 
     @classmethod
-    def from_dict(cls, _dict : dict) -> RmEntryEvent:
+    def from_dict(cls, _dict : dict) -> Self:
         return RmEntryEvent(
             _dict['uuid'],
             _dict['ts'],
@@ -87,7 +87,7 @@ class Problem:
     active : bool
 
     @classmethod
-    def from_row(cls, row: tuple) -> Problem:
+    def from_row(cls, row: tuple) -> Self:
         return cls(
             id=row[0],
             slug=row[1],

@@ -81,7 +81,7 @@ def fetch_all_problems() -> List[Dict[str, Any]]:
 
     except Exception as exc:
       typer.echo(f"An unexpected exception occured whilst fetching problems from leetcode.com: {exc}")
-      raise typer.Exit(1)
+      raise typer.Exit(1) from None
     
     typer.echo(f"All {len(all_questions)} problems succesfully fetched and stored from leetcode.com")
 

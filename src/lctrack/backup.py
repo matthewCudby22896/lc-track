@@ -38,7 +38,7 @@ def load_event_log(path : Path) -> List[BaseEvent]:
                 events.append(jsonl_to_event(json.loads(stripped_line)))
 
             except json.JSONDecodeError as exc:
-                raise Exception(f"Failed to parse ln {ln} of {f}: {exc}") 
+                raise Exception(f"Failed to parse ln {ln} of {f}: {exc}") from None
 
     return events            
 
