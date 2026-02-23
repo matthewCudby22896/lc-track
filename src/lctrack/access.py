@@ -1,6 +1,5 @@
 import os
 import json
-from re import match
 import datetime
 import sqlite3
 import git    
@@ -8,7 +7,7 @@ from pathlib import Path
 from typing import Tuple, List, Optional
 
 from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
-from .constants import DB_FILE, LOCAL_EVENT_LOG, BACKUP_EVENT_LOG, TMP_EVENT_LOG
+from .constants import DB_FILE, LOCAL_EVENT_LOG
 
 
 DB_SCHEMA_STMT = """
@@ -74,10 +73,10 @@ def check_repo(path : Path) -> bool:
         git.Repo(path)
         # If this succeeds, this is a valid repo
         return True
-    except git.InvalidGitRepositoryError as exc:
+    except git.InvalidGitRepositoryError:
         # The folder exists, but it's not a git repo
         return False
-    except git.NoSuchPathError as exc:
+    except git.NoSuchPathError:
         # The folder doesn't even exist
         return False
 
