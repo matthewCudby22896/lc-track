@@ -67,7 +67,7 @@ def study() -> None:
 
     if not colour_code:
         typer.echo(f"An unexpected error has occured: The chosen question's difficulty text was not recognised (problem_id={chosen.id})\n")
-        raise typer.exit(1) from None
+        raise typer.Exit(1) from None
 
     typer.echo(f"To study: LC{chosen.id}. {chosen.title} {colour_code}[{chosen.difficulty_txt}]{RESET}\n")
 
@@ -123,13 +123,13 @@ def activate(id: int) -> None:
 
         if not problem:
             typer.echo(f"No problem found with id: {id}\n")
-            raise typer.exit(1) from None
+            raise typer.Exit(1) from None
 
         problem_txt = f"LC{id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
 
         if problem.active:
             typer.echo(f"{problem_txt} is already in the active study set.\n")
-            raise typer.exit(1) from None
+            raise typer.Exit(1) from None
 
         access.set_active(con, id, True)
 
@@ -145,13 +145,13 @@ def deactivate(id: int) -> None:
 
         if not problem:
             typer.echo(f"No problem found with id: {id}\n")
-            raise typer.exit(1) from None
+            raise typer.Exit(1) from None
 
         problem_txt = f"LC{id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
 
         if not problem.active:
             typer.echo(f"{problem_txt} is not in the active study set.\n")
-            raise typer.exit(1) from None
+            raise typer.Exit(1) from None
 
         access.set_active(con, id, False)
 
@@ -170,7 +170,7 @@ def details(id: int) -> None:
 
     if not problem:
         typer.echo(f"No problem found with id: {id}")
-        raise typer.exit(1) from None
+        raise typer.Exit(1) from None
 
     assert(isinstance(problem, Problem))
 
@@ -232,7 +232,7 @@ def add_entry(
         problem = access.get_problem(con, id)
     if not problem:
         typer.echo(f"No problem found with id: {id}")
-        raise typer.exit(1) from None
+        raise typer.Exit(1) from None
 
     assert isinstance(problem, Problem)
 
@@ -267,7 +267,7 @@ def add_entry(
 
     except Exception as exc:
         typer.echo(f"Failed to log entry: {exc}")
-        raise typer.exit(1) from None
+        raise typer.Exit(1) from None
 
     finally:
         if con:
@@ -297,11 +297,11 @@ def rm_entry(entry_uuid : str) -> None:
         entry = access.get_entry(con, entry_uuid)
     except Exception as exc:
         typer.echo(f"Failed to check for entry existence: {exc}\n")
-        raise typer.exit(1) from None
+        raise typer.Exit(1) from None
 
     if not entry:
         typer.echo(f"No entry found with uuid: {entry_uuid}\n")
-        raise typer.exit(1) from None
+        raise typer.Exit(1) from None
 
     problem_id = entry.problem_id
 
@@ -334,7 +334,7 @@ def rm_entry(entry_uuid : str) -> None:
 
     except Exception as exc:
         typer.echo(f"Failed to remove entry with uuid={entry_uuid}: {exc}\n")
-        raise typer.exit(1) from None
+        raise typer.Exit(1) from None
 
     typer.echo(f"Entry {YELLOW}{entry_uuid}{RESET} removed. LC {problem_id} state recalculated.\n")
 
@@ -379,7 +379,7 @@ def set_pat(pat: str = typer.Argument(..., help="Your GitHub Personal Access Tok
 
     except Exception as exc:
         typer.echo(f"An unexpected exception has occurred: {exc}\n")
-        raise typer.exit(1) from None
+        raise typer.Exit(1) from None
 
     typer.echo("Success: GitHub PAT has been saved.")
 
@@ -413,7 +413,7 @@ def setup_backup():
         typer.echo("Error: Invalid PAT. Please verify your token and try again.")
         with access.get_db_connection() as con:
             access.set_state(con, 'SYNC_SETUP', 'FAILURE')
-        raise typer.exit(1) from None
+        raise typer.Exit(1) from None
 
     # 4. Repository Verification
     try:
@@ -423,7 +423,7 @@ def setup_backup():
         typer.echo(f"Error: Repository '{repo_name}' not found. Check name and PAT scopes.")
         with access.get_db_connection() as con:
             access.set_state(con, 'SYNC_SETUP', 'FAILURE')
-        raise typer.exit(1) from None
+        raise typer.Exit(1) from None
 
     # 5. Permission Verification
     permissions = repo.permissions
@@ -431,7 +431,7 @@ def setup_backup():
         typer.echo("Error: PAT has insufficient permissions (Read/Write required)")
         with access.get_db_connection() as con:
             access.set_state(con, 'SYNC_SETUP', 'FAILURE')
-        raise typer.exit(1) from None
+        raise typer.Exit(1) from None
 
     typer.echo("Connected: Read and Write access confirmed")
 
@@ -460,7 +460,7 @@ def sync() -> None:
     with access.get_db_connection() as con:
         if access.get_state(con, 'SYNC_SETUP') != 'SUCCESS':
             typer.echo("Error: Sync not configured. Run `lc-track setup-backup` first.\n")
-            raise typer.exit(1) from None
+            raise typer.Exit(1) from None
 
         pat = access.get_state(con, 'PAT')
         repo_name = access.get_state(con, 'BACKUP_REPO_NAME')
@@ -477,7 +477,7 @@ def sync() -> None:
                 repo.remotes.origin.set_url(auth_url)
         except Exception as exc:
             typer.echo(f"Failed to initialise local repository from remote:\n\t{exc}\n")
-            raise typer.exit(1) from None
+            raise typer.Exit(1) from None
 
         # 3. Handle Empty Remote (First-time use)
         if not repo.refs:
@@ -493,7 +493,7 @@ def sync() -> None:
 
             except Exception as exc:
                 typer.echo(f"Failed to handle initialisation of empty repository:\n\t{exc}\n")
-                raise typer.exit(1) from None
+                raise typer.Exit(1) from None
 
     # 4. The Sync Process
     try:
@@ -527,7 +527,7 @@ def sync() -> None:
 
     except Exception as exc:
         typer.echo(f"Error: An unexpected error occurred during sync:\n\t{exc}\n")
-        raise typer.exit(1) from None
+        raise typer.Exit(1) from None
 
 if __name__ == "__main__":
     app()

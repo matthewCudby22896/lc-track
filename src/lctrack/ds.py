@@ -14,7 +14,7 @@ class Entry:
 
     @classmethod
     def from_row(cls, row: tuple) -> Self:
-        return Entry(
+        return cls(
             uuid=row[0],
             problem_id=row[1],
             confidence=row[2],
@@ -51,7 +51,7 @@ class AddEntryEvent(BaseEvent):
 
     @classmethod
     def from_dict(cls, _dict : dict) -> Self:
-        return AddEntryEvent(
+        return cls(
             _dict['uuid'],
             _dict['ts'],
             _dict['entry_uuid'],
@@ -61,12 +61,12 @@ class AddEntryEvent(BaseEvent):
 
 @dataclass
 class RmEntryEvent(BaseEvent):
-    EVENT_TYPE: ClassVar[Final[str]] = "RM_ENTRY"
+    event_type: ClassVar[Final[str]] = "RM_ENTRY"
     target_entry_uuid: UUID
 
     @classmethod
     def from_dict(cls, _dict : dict) -> Self:
-        return RmEntryEvent(
+        return cls(
             _dict['uuid'],
             _dict['ts'],
             _dict['target_entry_uuid']
