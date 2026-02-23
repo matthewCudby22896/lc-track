@@ -12,7 +12,7 @@ from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
 DB_SCHEMA_STMT = """
 CREATE TABLE IF NOT EXISTS problems (
     id INTEGER PRIMARY KEY,
-    slug TEXT NOT NULL UNIQUE, 
+    slug TEXT NOT NULL UNIQUE,
     title TEXT,
     difficulty INTEGER CHECK (difficulty BETWEEN 0 AND 2),
     last_review_at INTEGER,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS problem_topic (
 );
 
 CREATE TABLE IF NOT EXISTS entries(
-    uuid TEXT PRIMARY KEY, 
+    uuid TEXT PRIMARY KEY,
     problem_id INTEGER NOT NULL,
     confidence INTEGER NOT NULL CHECK (confidence BETWEEN 0 and 5),
     ts INTEGER NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS entries(
 );
 
 CREATE TABLE IF NOT EXISTS app_state (
-    key TEXT PRIMARY KEY, 
+    key TEXT PRIMARY KEY,
     value TEXT
 );
 """
@@ -87,7 +87,7 @@ def get_for_review_problems(con : sqlite3.Connection) -> list[Problem]:
     try:
         cur.execute("""
             SELECT * FROM problems
-            WHERE next_review_at <= ? 
+            WHERE next_review_at <= ?
             AND active = 1
         """, (now, ))
         for_review = [Problem.from_row(x) for x in  cur.fetchall()]
