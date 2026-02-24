@@ -1,6 +1,5 @@
 import datetime
 import logging
-import random
 import subprocess
 import uuid
 from typing import Annotated
@@ -9,7 +8,7 @@ import git
 import github
 import typer
 
-from . import access, backup
+from . import access, backup, service
 from .constants import (
     BACKUP_EVENT_LOG,
     BACKUP_REPO_DIR,
@@ -54,64 +53,56 @@ def main():
 @app.command(name="study")
 def study() -> None:
     """Select a random problem from the set of active problems that are due for review."""
-    with access.get_db_connection() as con:
-        problems = access.get_for_review_problems(con)
 
-    if not problems:
+    problem = service.get_problem_to_study()
+
+    if not problem:
         typer.echo("No problems due for review.")
-        return
+        raise typer.Exit(0) from None
 
-    chosen : Problem = random.choice(problems)
+    colour_code = colours.get(problem.difficulty_txt)
 
-    colour_code = colours.get(chosen.difficulty_txt)
-
-    if not colour_code:
-        typer.echo(f"An unexpected error has occured: The chosen question's difficulty text was not recognised (problem_id={chosen.id})\n")
-        raise typer.Exit(1) from None
-
-    typer.echo(f"To study: LC{chosen.id}. {chosen.title} {colour_code}[{chosen.difficulty_txt}]{RESET}\n")
+    typer.echo(f"To study: LC{problem.id}. {problem.title} {colour_code}[{problem.difficulty_txt}]{RESET}\n")
 
 @app.command(name="ls-active")
 def ls_active() -> None:
     """ List all problems currently in the active study set. """
-    with access.get_db_connection() as con:
-        active_problems = access.get_active_problems(con)
+    active_problems = service.get_active_problems()
 
     if not active_problems:
         typer.echo("Your active study set is empty. Use 'lc-track activate <id>' to add some!")
-        return
+        raise typer.Exit(0) from None
 
     header = f"{BOLD_WHITE}Active Study Set: ({len(active_problems)} problems){RESET}\n"
 
-    lines = [header] + [
+    problem_rows = (
         f"LC{p.id:<4}. {p.title:<50} {colours[p.difficulty_txt]}{p.difficulty_txt}{RESET}\n"
         for p in active_problems
-    ]
+    )
 
-    text = "".join(lines)
+    text = header + "".join(problem_rows)
 
     typer.echo(text)
 
 @app.command(name="ls-review")
 def ls_for_review():
     """ List all problems, within the active set, currently due for review. """
-    with access.get_db_connection() as con:
-        due_problems = access.get_for_review_problems(con)
+    due_problems = service.get_for_review_problems()
 
     if not due_problems:
         typer.echo("No problems due for review. You're all caught up!")
-        raise typer.Exit(0)
+        raise typer.Exit(0) from None
 
     header = f"{BOLD_WHITE}Due For Review: ({len(due_problems)} problems){RESET}\n"
 
-    lines = [header] + [
+    problem_rows = (
         f"LC{p.id:<4}. {p.title:<50} {colours[p.difficulty_txt]}{p.difficulty_txt}{RESET}\n"
         for p in due_problems
-    ]
+    )
 
-    output = "".join(lines)
+    text = header + "".join(problem_rows)
 
-    typer.echo(output)
+    typer.echo(text)
 
 @app.command(name="activate")
 def activate(id: int) -> None:
