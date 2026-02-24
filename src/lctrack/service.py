@@ -85,6 +85,22 @@ def deactivate_problem(problem_id: int) -> Problem:
     finally:
         con.close()
 
+def get_problem_and_topics(problem_id : int) -> tuple[Problem, list[str]]:
+    con = access.get_db_connection()
+
+    try:
+        problem = access.get_problem(con, problem_id)
+
+        if not problem:
+            raise ProblemNotFoundError
+
+        topics : list[str] = access.get_problem_topics(con, problem_id) 
+
+        return problem, topics
+
+    finally:
+        con.close()
+
 class ProblemNotFoundError(Exception):
     pass
 
