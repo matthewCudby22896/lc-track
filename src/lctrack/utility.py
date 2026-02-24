@@ -51,6 +51,7 @@ def initial_sync() -> None:
 def date_from_ts(unix_ts : int) -> str:
     return datetime.datetime.fromtimestamp(unix_ts).strftime("%Y-%m-%d %H:%M")
 
+
 def SM2(grade : int,
         repetition_num : int,
         easiness_factor : float,
@@ -84,7 +85,6 @@ def SM2(grade : int,
             easiness_factor = 1.3
 
         return repetition_num, easiness_factor, interval
-
 def calculate_new_state(n : int, ef : float, i : int, confidence : int, now_ts : int) -> tuple[int, float, int, int]:
     """
     """

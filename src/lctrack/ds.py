@@ -1,16 +1,18 @@
 
 from abc import ABC, abstractmethod
-from dataclasses import asdict, dataclass
+import uuid
+from datetime import datetime
+from dataclasses import asdict, dataclass, field
 from typing import Any, ClassVar, Final, Self
 
 UUID = str
 
 @dataclass
 class Entry:
-    uuid : UUID
     problem_id : int
     confidence: int
     ts : int
+    uuid : str = field(default_factory=lambda : str(uuid.uuid4()))
 
     @classmethod
     def from_row(cls, row: tuple) -> Self:
@@ -26,8 +28,8 @@ class Entry:
 
 @dataclass
 class BaseEvent(ABC):  # Inherit from ABC
-    uuid: UUID
     ts: int
+    uuid : str = field(default_factory=lambda : str(uuid.uuid4()))
 
     # This forces subclasses to define EVENT_TYPE
     @property
@@ -41,7 +43,7 @@ class BaseEvent(ABC):  # Inherit from ABC
         return data
 
 
-@dataclass
+@dataclass(kw_only=True)
 class AddEntryEvent(BaseEvent):
     event_type: ClassVar[Final[str]] = "ADD_ENTRY"
 
@@ -59,7 +61,7 @@ class AddEntryEvent(BaseEvent):
             _dict['confidence']
         )
 
-@dataclass
+@dataclass(kw_only=True)
 class RmEntryEvent(BaseEvent):
     event_type: ClassVar[Final[str]] = "RM_ENTRY"
     target_entry_uuid: UUID
@@ -101,6 +103,43 @@ class Problem:
             n=row[8],
             active=bool(row[9])
         )
+
+    def next_review_txt(self) -> str:
+        if not self.next_review_at:
+            return "Not yet studied (due for review)"
+
+        now = datetime.now()
+        next_at = datetime.fromtimestamp(self.next_review_at)
+        
+        txt = next_at.strftime("%Y-%m-%d")
+
+        if now >= next_at:
+            return f"{txt} (due for review)"
+
+        diff = next_at - now
+        hours, _ = divmod(diff.seconds, 3600)
+        
+        return f"{txt} (due in {diff.days} days, {hours} hrs)"
+
+    def last_review_txt(self) -> str:
+        if not self.last_review_at:
+            return "Never"
+
+        now = datetime.now()
+        last_at = datetime.fromtimestamp(self.last_review_at)
+        
+        txt = last_at.strftime("%Y-%m-%d")
+        
+        diff = now - last_at
+        
+        if diff.days == 0:
+            # Check if it was literally just now (less than 1 hour)
+            hours, _ = divmod(diff.seconds, 3600)
+            if hours == 0:
+                return f"{txt} (less than 1 hr ago)"
+            return f"{txt} ({hours} hrs ago)"
+        
+        return f"{txt} ({diff.days} days ago)"
 
 
 DIFF_TO_INT = {

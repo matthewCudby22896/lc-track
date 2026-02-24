@@ -169,38 +169,13 @@ def details(id: int) -> None:
         typer.echo(f"{RED}An unexpected error occurred:{RESET} {exc}")
         raise typer.Exit(1) from None
         
-
-    now = datetime.datetime.now()
-
-    problem_header = f"{BOLD_WHITE}LC{id}. {problem.title}{RESET} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
-
-    last_review_at = datetime.datetime.fromtimestamp(problem.last_review_at) if problem.last_review_at else None
-    next_review_at = datetime.datetime.fromtimestamp(problem.next_review_at) if problem.next_review_at else None
-
-    last_review_txt = f"{date_from_ts(problem.last_review_at)} ({(now - last_review_at).days} days ago)" if last_review_at else "Never"
-    if not problem.active: 
-        next_review_txt = "N/A (not in active study set)"
-    elif not next_review_at:
-        next_review_txt = "Not yet studied (due for review)"
-    else:
-        next_review_txt =  next_review_at.strftime("%Y-%m-%d")
-
-        if now >= next_review_at:
-            next_review_txt += " (due for review)"
-
-        else:
-            diff = (next_review_at - now)
-            days = diff.days
-            hours, _ = divmod(diff.seconds, 3600)
-            next_review_txt += f" (due in {days} days, {hours} hrs)"
-
     text = (
-        f"{problem_header}\n"
+        f"{BOLD_WHITE}LC{id}. {problem.title}{RESET} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"
         f"Topics: {', '.join(topics)}\n"
         f"\n"
         f"{BOLD_WHITE}Problem State{RESET}\n"
-        f"Last Review: {last_review_txt}\n"
-        f"Next Review: {next_review_txt}\n"
+        f"Last Review: {problem.last_review_txt()}\n"
+        f"Next Review: {problem.next_review_txt()}\n"
         f"Interval: {problem.i}\n"
         f"Repitition: {problem.n}\n"
         f"Easiness Factor: {problem.ef:.2f}\n"
@@ -215,62 +190,22 @@ def add_entry(
 ) -> None:
     """ Log a completion and update the SM-2 state.
     Usage: lc-track add-entry <problem-id> <confidence [0-5]>
-    """
-    # Get current time
-    now_ts = int(datetime.datetime.now().timestamp())
-
-    # Ensure the problem exists
-    with access.get_db_connection() as con:
-        problem = access.get_problem(con, id)
-    if not problem:
-        typer.echo(f"No problem found with id: {id}")
-        raise typer.Exit(1) from None
-
-    assert isinstance(problem, Problem)
-
-    # Calculate the new state of the problem, based of the provided confidence rating (0-5)
-    n, ef, i, next_rev_ts = calculate_new_state(problem.n, problem.ef, problem.i, confidence, now_ts)
-    entry_uuid = str(uuid.uuid4())
-
-    # Update program state in single atomic transaction
+    """  
     try:
-        con = access.get_db_connection()
-        with con:
-            # Insert entry (ADD_ENTRY event logged as side effect)
-            access.add_entry(
-                con,
-                Entry(entry_uuid, id, confidence, now_ts)
-            )
-            # Update the SM2 state of the problem
-            access.update_SM2_state(
-                con,
-                problem.id,
-                n,
-                ef,
-                i,
-                now_ts,
-                next_rev_ts
-            )
-
-            # Write event to event log, if this fails the above two changes will be rolled back
-            access.append_event(
-                AddEntryEvent(str(uuid.uuid4()), now_ts, entry_uuid, problem.id, confidence)
-            )
-
-    except Exception as exc:
-        typer.echo(f"Failed to log entry: {exc}")
+        problem, entry = service.add_entry(id, confidence)
+    except service.ProblemNotFoundError:
+        typer.echo(f"No problem found with id : '{id}'.")
         raise typer.Exit(1) from None
-
-    finally:
-        if con:
-            con.close()
+    except Exception as exc:
+        typer.echo(f"{RED}An unexpected error occurred:{RESET} {exc}")
+        raise typer.Exit(1) from None
 
     output = (
-        f"{BOLD_WHITE}Entry saved: {RESET}{YELLOW}{entry_uuid}{RESET}\n"
+        f"{BOLD_WHITE}Entry saved: {RESET}{YELLOW}{entry.uuid}{RESET}\n"
         f"LC{problem.id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"
         f"Confidence: {confidence}\n"
-        f"Streak: {n}\n"
-        f"Next Review: {date_from_ts(next_rev_ts)}\n"
+        f"Streak: {problem.n}\n"
+        f"Next Review: {problem.next_review_txt()}\n"
     )
 
     typer.echo(output)
