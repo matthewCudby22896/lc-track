@@ -109,44 +109,49 @@ def activate(id: int) -> None:
     """ Add a problem to the active study set.
     Usage: lc-track activate <problem-id>
     """
-    with access.get_db_connection() as con:
-        problem = access.get_problem(con, id)
 
-        if not problem:
-            typer.echo(f"No problem found with id: {id}\n")
-            raise typer.Exit(1) from None
+    try:
+        problem = service.activate_problem(id)
 
         problem_txt = f"LC{id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
+        typer.echo(f"{BOLD_WHITE}Added to active study set:{RESET} {problem_txt}\n")
 
-        if problem.active:
-            typer.echo(f"{problem_txt} is already in the active study set.\n")
-            raise typer.Exit(1) from None
+    except service.ProblemNotFoundError:
+        typer.echo(f"No problem found with id : '{id}'.")
+        raise typer.Exit(1) from None
 
-        access.set_active(con, id, True)
+    except service.ProblemAlreadyActiveError:
+        typer.echo("Problem already active.")
+        raise typer.Exit(1) from None
 
-    typer.echo(f"{BOLD_WHITE}Added to active study set:{RESET} {problem_txt}\n")
+    except Exception as exc:
+        typer.echo(f"{RED}An unexpected error occurrred:{RESET} {exc}")
+        raise typer.Exit(1) from None
 
 @app.command(name="deactivate")
 def deactivate(id: int) -> None:
     """ Remove a problem from the active study set.
     Usage: lc-track deactivate <problem-id>
     """
-    with access.get_db_connection() as con:
-        problem = access.get_problem(con, id)
 
-        if not problem:
-            typer.echo(f"No problem found with id: {id}\n")
-            raise typer.Exit(1) from None
+    try:
+        problem = service.deactivate_problem(id)
 
         problem_txt = f"LC{id}. {problem.title} [{colours[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
+        typer.echo(f"{BOLD_WHITE}Removed from active study set:{RESET} {problem_txt}\n")
 
-        if not problem.active:
-            typer.echo(f"{problem_txt} is not in the active study set.\n")
-            raise typer.Exit(1) from None
+    except service.ProblemNotFoundError:
+        typer.echo(f"No problem found with id : '{id}'.")
+        raise typer.Exit(1) from None
 
-        access.set_active(con, id, False)
+    except service.ProblemAlreadyInactiveError:
+        typer.echo("Problem is not currently active.")
+        raise typer.Exit(1) from None
 
-    typer.echo(f"{BOLD_WHITE}Removed from active study set:{RESET} {problem_txt}\n")
+    except Exception as exc:
+        typer.echo(f"{RED}An unexpected error occurred:{RESET} {exc}")
+        raise typer.Exit(1) from None
+
 
 @app.command(name="details")
 def details(id: int) -> None:
