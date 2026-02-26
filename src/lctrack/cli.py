@@ -230,22 +230,25 @@ def log():
         process.communicate(input=text)
     except FileNotFoundError:
         typer.echo(text)
-
-@app.command(name="set-pat")
-def set_pat(pat: str = typer.Argument(..., help="Your GitHub Personal Access Token")):
-    """
-    Update / set your GitHub Personal Access Token in the local database.
-    Usage: lc-track set-pat <PAT>
-    """
-    try:
-        with access.get_db_connection() as con:
-            access.set_state(con, 'PAT', pat)
-
     except Exception as exc:
-        typer.echo(f"An unexpected exception has occurred: {exc}\n")
+        typer.echo(f"{RED}An unexpected error occurred:{RESET} {exc}")
         raise typer.Exit(1) from None
 
-    typer.echo("Success: GitHub PAT has been saved.")
+# TODO: Possibly make a request to Github to determine the permissions of the token
+# Outputting them to the user, and warning them if it's missing required permissions
+@app.command(name="set-pat")
+def set_pat():
+    """
+    Update / set your GitHub Personal Access Token in the local database.
+    """
+    pat = typer.prompt("GitHub Personal Access Token", hide_input=True)
+    try:
+        service.set_pat(pat)
+    except Exception as exc:
+        typer.echo(f"{RED}An unexpected error occurred:{RESET} {exc}")
+        raise typer.Exit(1) from None
+
+    typer.echo(f"{BOLD_WHITE}Success: GitHub PAT has been saved. {RESET}")
 
 @app.command(name="setup-backup")
 def setup_backup():
@@ -253,20 +256,35 @@ def setup_backup():
     Setup access to a github repository to use as a remote backup of lc-track's event log.
     """
     typer.echo(
-        """
-        [ LC-TRACK SYNC SETUP ]
+        f"""
+        {BOLD_WHITE}[ LC-TRACK SYNC SETUP ]{RESET}
 
         Prerequisites:
         1. A GitHub repository (e.g., 'lc-track-backup')
         2. A Fine-Grained PAT with 'Contents: Read & Write' permissions
+        for the given repository
         """
     )
-
-    # 1. Inputs
-    repo_name = typer.prompt("Backup repository name")
+    repo_name = typer.prompt("Repository Name")
     pat = typer.prompt("GitHub Personal Access Token", hide_input=True)
 
-    g = github.Github(pat)
+    # Authenticate 
+    try:
+        g, login = service.auth_user(pat)
+
+    except github.GithubException as exc:
+        typer.echo(f"Failed to authenticated: {exc}")        
+    except Exception as exc:
+        typer.echo(f"{RED}An unexpected error occurred:{RESET} {exc}")
+        raise typer.Exit(1) from None
+    
+    typer.echo(f"{BOLD_WHITE}Connected{RESET}: Authenticated as {BOLD_WHITE}{login}{RESET}")
+
+    return
+
+
+    
+
 
     # 3. Connection & Authentication
     try:

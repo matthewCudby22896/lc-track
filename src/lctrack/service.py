@@ -1,6 +1,11 @@
 import random
 import sqlite3
+import keyring
+import github
 from datetime import datetime
+
+from github.AuthenticatedUser import AuthenticatedUser
+from github.NamedUser import NamedUser
 
 from lctrack.constants import DIFF_COLOUR, RESET, YELLOW
 
@@ -194,6 +199,9 @@ def build_entry_log() -> str:
     try:
         entries : list[Entry] = access.get_all_entries(con)
 
+        if not entries:
+            return "No entries found :("
+
         entries.sort(key = lambda x : x.ts, reverse=True)
 
         text_blocks = []
@@ -216,6 +224,31 @@ def build_entry_log() -> str:
     finally:
         con.close()
 
+def auth_user(pat : str) -> github.Github:
+    g = github.Github(
+        auth=github.Auth.Token(pat)
+    )
+
+    user : NamedUser | AuthenticatedUser = g.get_user()
+
+    # Forces a request to fetch the login
+    user.login # May raise a GithubException for error status codes
+
+    return g, user.login
+
+
+
+
+    
+
+class FailedAuth(Exception):
+    pass
+
+def set_pat(pat : str) -> None:
+    keyring.set_password("lc-track", "GithubPAT", pat)
+
+def get_pat() -> str:
+    keyring.get_password("lc-track", "GithubPAT")
 
 def recalc_problem_state(con : sqlite3.Connection, problem_id : int) -> None:
     entries : list[Entry] = access.get_entries_by_problem_id(con, problem_id)
