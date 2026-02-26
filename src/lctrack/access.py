@@ -198,10 +198,10 @@ def process_event(con : sqlite3.Connection, event : BaseEvent) -> None:
             add_entry(
                 con,
                 Entry(
-                    event.entry_uuid,
                     event.problem_id,
                     event.confidence,
-                    event.ts
+                    event.ts,
+                    event.entry_uuid
                 )
             )
         case RmEntryEvent():

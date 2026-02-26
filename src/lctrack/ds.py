@@ -1,8 +1,8 @@
 
-from abc import ABC, abstractmethod
 import uuid
-from datetime import datetime
+from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from typing import Any, ClassVar, Final, Self
 
 UUID = str
@@ -25,6 +25,10 @@ class Entry:
 
     def to_row(self) -> tuple[str, int, int, int]:
         return (self.uuid, self.problem_id, self.confidence, self.ts)
+
+    @property
+    def timestamp_txt(self):
+        return datetime.fromtimestamp(self.ts).strftime("%Y-%m-%d %H:%M")
 
 @dataclass
 class BaseEvent(ABC):  # Inherit from ABC
@@ -54,11 +58,11 @@ class AddEntryEvent(BaseEvent):
     @classmethod
     def from_dict(cls, _dict : dict) -> Self:
         return cls(
-            _dict['uuid'],
-            _dict['ts'],
-            _dict['entry_uuid'],
-            _dict['problem_id'],
-            _dict['confidence']
+            uuid=_dict['uuid'],
+            ts=_dict['ts'],
+            entry_uuid=_dict['entry_uuid'],
+            problem_id=_dict['problem_id'],
+            confidence=_dict['confidence']
         )
 
 @dataclass(kw_only=True)
@@ -69,9 +73,9 @@ class RmEntryEvent(BaseEvent):
     @classmethod
     def from_dict(cls, _dict : dict) -> Self:
         return cls(
-            _dict['uuid'],
-            _dict['ts'],
-            _dict['target_entry_uuid']
+            uuid=_dict['uuid'],
+            ts=_dict['ts'],
+            target_entry_uuid=_dict['target_entry_uuid']
         )
 
 @dataclass
@@ -110,7 +114,7 @@ class Problem:
 
         now = datetime.now()
         next_at = datetime.fromtimestamp(self.next_review_at)
-        
+
         txt = next_at.strftime("%Y-%m-%d")
 
         if now >= next_at:
@@ -118,7 +122,7 @@ class Problem:
 
         diff = next_at - now
         hours, _ = divmod(diff.seconds, 3600)
-        
+
         return f"{txt} (due in {diff.days} days, {hours} hrs)"
 
     def last_review_txt(self) -> str:
@@ -127,18 +131,18 @@ class Problem:
 
         now = datetime.now()
         last_at = datetime.fromtimestamp(self.last_review_at)
-        
+
         txt = last_at.strftime("%Y-%m-%d")
-        
+
         diff = now - last_at
-        
+
         if diff.days == 0:
             # Check if it was literally just now (less than 1 hour)
             hours, _ = divmod(diff.seconds, 3600)
             if hours == 0:
                 return f"{txt} (less than 1 hr ago)"
             return f"{txt} ({hours} hrs ago)"
-        
+
         return f"{txt} ({diff.days} days ago)"
 
 

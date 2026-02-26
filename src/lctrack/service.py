@@ -1,9 +1,12 @@
-import datetime
 import random
-import uuid
+import sqlite3
+from datetime import datetime
+
+from lctrack.constants import DIFF_COLOUR, RESET, YELLOW
 
 from . import access
-from .ds import Problem, Entry, AddEntryEvent
+from .ds import AddEntryEvent, Entry, Problem, RmEntryEvent
+
 
 def get_problem_to_study() -> Problem | None:
     con = access.get_db_connection()
@@ -95,14 +98,14 @@ def get_problem_and_topics(problem_id : int) -> tuple[Problem, list[str]]:
         if not problem:
             raise ProblemNotFoundError
 
-        topics : list[str] = access.get_problem_topics(con, problem_id) 
+        topics : list[str] = access.get_problem_topics(con, problem_id)
 
         return problem, topics
 
     finally:
         con.close()
 
-# TODO: It may make sense append_event first as this is the SoT, and then 
+# TODO: It may make sense append_event first as this is the SoT, and then
 # if the commit() fails we would recalc the state for the given problem
 def add_entry(problem_id : int, confidence : int) -> tuple[Problem, Entry]:
     con = access.get_db_connection()
@@ -113,7 +116,7 @@ def add_entry(problem_id : int, confidence : int) -> tuple[Problem, Entry]:
         if not problem:
             raise ProblemNotFoundError
 
-        now_ts = int(datetime.datetime.now().timestamp())
+        now_ts = int(datetime.now().timestamp())
 
         n, ef, i, next_review_ts = calculate_new_state(
             problem.n,
@@ -143,20 +146,95 @@ def add_entry(problem_id : int, confidence : int) -> tuple[Problem, Entry]:
                 entry_uuid=entry.uuid,
                 problem_id=problem.id,
                 confidence=confidence
-            ) 
+            )
         )
-
-        # If the above event doesn't raise an exception, commit the transaction
-        con.commit()
 
         # Get updated state of problem
         problem = access.get_problem(con, problem.id)
 
+        con.commit()
+
+        assert problem is not None
+
         return problem, entry
-        
+
     finally:
         con.close()
 
+def rm_entry(entry_uuid : str) -> int:
+    con = access.get_db_connection()
+
+    try:
+        entry : Entry | None = access.get_entry(con, entry_uuid)
+
+        if not entry:
+            raise EntryNotNoundError
+
+        access.rm_entry(con, entry_uuid)
+
+        recalc_problem_state(con, entry.problem_id)
+
+        con.commit()
+
+        access.append_event(
+            RmEntryEvent(
+                ts=int(datetime.now().timestamp()),
+                target_entry_uuid=entry.uuid
+            )
+        )
+
+        return entry.problem_id
+
+    finally:
+        con.close()
+
+def build_entry_log() -> str:
+    con = access.get_db_connection()
+
+    try:
+        entries : list[Entry] = access.get_all_entries(con)
+
+        entries.sort(key = lambda x : x.ts, reverse=True)
+
+        text_blocks = []
+        for entry in entries:
+            w = 12
+            problem = access.get_problem(con, entry.problem_id)
+            assert problem
+            block = (
+                f"{YELLOW}entry {entry.uuid}{RESET}\n"
+                f"{'Problem:':<{w}} {entry.problem_id}. {problem.title} [{DIFF_COLOUR[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"
+                f"{'Date:':<{w}} {entry.timestamp_txt}\n"
+                f"{'Confidence:':<{w}} {entry.confidence}/5\n"
+            )
+            text_blocks.append(block)
+
+        text = "\n".join(text_blocks)
+
+        return text
+
+    finally:
+        con.close()
+
+
+def recalc_problem_state(con : sqlite3.Connection, problem_id : int) -> None:
+    entries : list[Entry] = access.get_entries_by_problem_id(con, problem_id)
+
+    n, ef, i = 0, 2.5, 0
+
+    if not entries:
+        last_review_ts, next_review_ts = 0, 0
+    else:
+        entries.sort(key = lambda x : x.ts)
+        for entry in entries:
+            n, ef, i = SM2(
+                entry.confidence, n, ef, i
+            )
+            last_review_ts = entry.ts
+
+        next_review_ts = last_review_ts + i * 86400
+
+    access.update_SM2_state(con, problem_id, n, ef, i, last_review_ts, next_review_ts)
 
 def calculate_new_state(n : int, ef : float, i : int, confidence : int, now_ts : int) -> tuple[int, float, int, int]:
     """
@@ -176,6 +254,9 @@ class ProblemAlreadyActiveError(Exception):
     pass
 
 class ProblemAlreadyInactiveError(Exception):
+    pass
+
+class EntryNotNoundError(Exception):
     pass
 
 

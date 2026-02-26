@@ -33,3 +33,9 @@ GREEN = "\033[32m" # EASY
 RED = "\033[31m" # HARD
 BOLD_WHITE = "\033[1;37m"
 RESET = "\033[0m"
+
+DIFF_COLOUR = {
+    "Easy": GREEN,
+    "Medium": YELLOW,
+    "Hard": RED
+}
