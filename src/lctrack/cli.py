@@ -1,6 +1,4 @@
 import datetime
-import logging
-import subprocess
 from typing import Annotated
 
 import git
@@ -23,9 +21,7 @@ from .constants import (
 from .ds import BaseEvent
 from .utility import initial_sync
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 app = typer.Typer(add_completion=False)
-
 
 def fmt_date(ts):
     return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M') if ts else "Never"
@@ -48,8 +44,10 @@ def main():
 @app.command(name="study")
 def study() -> None:
     """Select a random problem from the set of active problems that are due for review."""
-
-    problem = service.get_problem_to_study()
+    try:
+        problem = service.get_problem_to_study()
+    except Exception as exc:
+        abort(f"An unexpected error occurred: {exc}")
 
     if not problem:
         typer.echo("No problems due for review.")
@@ -62,7 +60,10 @@ def study() -> None:
 @app.command(name="ls-active")
 def ls_active() -> None:
     """ List all problems currently in the active study set. """
-    active_problems = service.get_active_problems()
+    try:
+        active_problems = service.get_active_problems()
+    except Exception as exc:
+        abort(f"An unexpected error occurred: {exc}")
 
     if not active_problems:
         typer.echo("Your active study set is empty. Use 'lc-track activate <id>' to add some!")
@@ -82,7 +83,10 @@ def ls_active() -> None:
 @app.command(name="ls-review")
 def ls_for_review():
     """ List all problems, within the active set, currently due for review. """
-    due_problems = service.get_for_review_problems()
+    try:
+        due_problems = service.get_for_review_problems()
+    except Exception as exc:
+        abort(f"An unexpected error occurred: {exc}")
 
     if not due_problems:
         typer.echo("No problems due for review. You're all caught up!")
@@ -104,7 +108,6 @@ def activate(id: int) -> None:
     """ Add a problem to the active study set.
     Usage: lc-track activate <problem-id>
     """
-
     try:
         problem = service.activate_problem(id)
 
@@ -112,23 +115,19 @@ def activate(id: int) -> None:
         typer.echo(f"{BOLD_WHITE}Added to active study set:{RESET} {problem_txt}\n")
 
     except service.ProblemNotFoundError:
-        typer.echo(f"No problem found with id : '{id}'.")
-        raise typer.Exit(1) from None
+        abort(f"No problem found with id : '{id}'")
 
     except service.ProblemAlreadyActiveError:
-        typer.echo("Problem already active.")
-        raise typer.Exit(1) from None
+        abort("Problem already active")
 
     except Exception as exc:
-        typer.echo(f"{RED}An unexpected error occurrred:{RESET} {exc}")
-        raise typer.Exit(1) from None
+        abort(f"An unexpected error occurred: {exc}")
 
 @app.command(name="deactivate")
 def deactivate(id: int) -> None:
     """ Remove a problem from the active study set.
     Usage: lc-track deactivate <problem-id>
     """
-
     try:
         problem = service.deactivate_problem(id)
 
@@ -136,17 +135,13 @@ def deactivate(id: int) -> None:
         typer.echo(f"{BOLD_WHITE}Removed from active study set:{RESET} {problem_txt}\n")
 
     except service.ProblemNotFoundError:
-        typer.echo(f"No problem found with id : '{id}'.")
-        raise typer.Exit(1) from None
+        abort(f"No problem found with id : '{id}'")
 
     except service.ProblemAlreadyInactiveError:
-        typer.echo("Problem is not currently active.")
-        raise typer.Exit(1) from None
+        abort("Problem is not currently active")
 
     except Exception as exc:
-        typer.echo(f"{RED}An unexpected error occurred:{RESET} {exc}")
-        raise typer.Exit(1) from None
-
+        abort(f"An unexpected error occurred: {exc}")
 
 @app.command(name="details")
 def details(id: int) -> None:
@@ -157,12 +152,10 @@ def details(id: int) -> None:
         problem, topics = service.get_problem_and_topics(id)
 
     except service.ProblemNotFoundError:
-        typer.echo(f"No problem found with id : '{id}'.")
-        raise typer.Exit(1) from None
+        abort(f"No problem found with id : '{id}'")
 
     except Exception as exc:
-        typer.echo(f"{RED}An unexpected error occurred:{RESET} {exc}")
-        raise typer.Exit(1) from None
+        abort(f"An unexpected error occurred: {exc}")
 
     text = (
         f"{BOLD_WHITE}LC{id}. {problem.title}{RESET} [{DIFF_COLOUR[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"
@@ -189,11 +182,9 @@ def add_entry(
     try:
         problem, entry = service.add_entry(id, confidence)
     except service.ProblemNotFoundError:
-        typer.echo(f"No problem found with id : '{id}'.")
-        raise typer.Exit(1) from None
+        abort(f"No problem found with id : '{id}'.")
     except Exception as exc:
-        typer.echo(f"{RED}An unexpected error occurred:{RESET} {exc}")
-        raise typer.Exit(1) from None
+        abort(f"An unexpected error occurred: {exc}")
 
     text = (
         f"{BOLD_WHITE}Entry saved: {RESET}{YELLOW}{entry.uuid}{RESET}\n"
@@ -216,24 +207,20 @@ def rm_entry(entry_uuid : str) -> None:
         typer.echo(f"No entry found with uuid : '{entry_uuid}'")
         raise typer.Exit(1) from None
     except Exception as exc:
-        typer.echo(f"{RED}An unexpected error occurred:{RESET} {exc}")
-        raise typer.Exit(1) from None
+        abort(f"An unexpected error occurred: {exc}")
 
     typer.echo(f"Entry {YELLOW}{entry_uuid}{RESET} removed. LC {problem_id} state recalculated.\n")
 
 @app.command(name="log")
 def log():
     """Show entry logs in a searchable pager."""
-
-    text = service.build_entry_log()
     try:
-        process = subprocess.Popen(['less', '-R'], stdin=subprocess.PIPE, text=True)
-        process.communicate(input=text)
-    except FileNotFoundError:
-        typer.echo(text)
+        text = service.build_entry_log()
     except Exception as exc:
-        typer.echo(f"{RED}An unexpected error occurred:{RESET} {exc}")
-        raise typer.Exit(1) from None
+        abort(f"An unexpected error occurred: {exc}")
+
+    typer.echo_via_pager(text)
+
 
 # TODO: Possibly make a request to Github to determine the permissions of the token
 # Outputting them to the user, and warning them if it's missing required permissions
@@ -246,10 +233,9 @@ def set_pat():
     try:
         service.set_pat(pat)
     except Exception as exc:
-        typer.echo(f"{RED}An unexpected error occurred:{RESET} {exc}")
-        raise typer.Exit(1) from None
+        abort(f"An unexpected error occurred: {exc}")
 
-    typer.echo(f"{BOLD_WHITE}Success: GitHub PAT has been saved. {RESET}")
+    echo_success("Github PAT saved")
 
 def abort(msg: str) -> None:
     typer.echo(f"{RED}[error]{RESET} {msg}")
@@ -315,6 +301,7 @@ def setup_backup():
 
     echo_success("Backup / sync configuration saved")
 
+# TODO: Rework planned
 @app.command(name="sync")
 def sync() -> None:
     """
