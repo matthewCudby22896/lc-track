@@ -13,6 +13,7 @@ from .constants import (
     BACKUP_REPO_DIR,
     BOLD_WHITE,
     DIFF_COLOUR,
+    GREEN,
     LOCAL_EVENT_LOG,
     RED,
     RESET,
@@ -250,6 +251,13 @@ def set_pat():
 
     typer.echo(f"{BOLD_WHITE}Success: GitHub PAT has been saved. {RESET}")
 
+def abort(msg: str) -> None:
+    typer.echo(f"{RED}[error]{RESET} {msg}")
+    raise typer.Exit(1) from None
+
+def echo_success(msg: str) -> None:
+    typer.echo(f"{GREEN}[success]{RESET} {msg}")
+
 @app.command(name="setup-backup")
 def setup_backup():
     """
@@ -268,63 +276,44 @@ def setup_backup():
     repo_name = typer.prompt("Repository Name")
     pat = typer.prompt("GitHub Personal Access Token", hide_input=True)
 
-    # Authenticate 
+    # Authenticate
     try:
-        g, login = service.auth_user(pat)
+        _, user = service.auth_user(pat)
 
-    except github.GithubException as exc:
-        typer.echo(f"Failed to authenticated: {exc}")        
-    except Exception as exc:
-        typer.echo(f"{RED}An unexpected error occurred:{RESET} {exc}")
-        raise typer.Exit(1) from None
-    
-    typer.echo(f"{BOLD_WHITE}Connected{RESET}: Authenticated as {BOLD_WHITE}{login}{RESET}")
-
-    return
-
-
-    
-
-
-    # 3. Connection & Authentication
-    try:
-        user = g.get_user()
-        username = user.login
-        typer.echo(f"Connected: Authenticated as {username}")
     except github.BadCredentialsException:
-        typer.echo("Error: Invalid PAT. Please verify your token and try again.")
-        with access.get_db_connection() as con:
-            access.set_state(con, 'SYNC_SETUP', 'FAILURE')
-        raise typer.Exit(1) from None
+        abort("Bad credentials")
+    except Exception as exc:
+        abort(f"An unexpected error occurred: {exc}")
 
-    # 4. Repository Verification
+    echo_success(f"Authenticated as {BOLD_WHITE}{user.login}{RESET}")
+
+    # Verify existence of repository for authenticated user
     try:
-        repo = user.get_repo(repo_name)
-        typer.echo(f"Connected: Found {repo_name} repository")
+        repo = service.verify_repository(user, repo_name)
     except github.UnknownObjectException:
-        typer.echo(f"Error: Repository '{repo_name}' not found. Check name and PAT scopes.")
-        with access.get_db_connection() as con:
-            access.set_state(con, 'SYNC_SETUP', 'FAILURE')
-        raise typer.Exit(1) from None
+        abort(f"Repository '{repo_name}' not found")
+    except Exception as exc:
+        abort(f"An unexpected error occurred: {exc}")
 
-    # 5. Permission Verification
-    permissions = repo.permissions
-    if not (permissions.push and permissions.pull):
-        typer.echo("Error: PAT has insufficient permissions (Read/Write required)")
-        with access.get_db_connection() as con:
-            access.set_state(con, 'SYNC_SETUP', 'FAILURE')
-        raise typer.Exit(1) from None
+    echo_success(f"{BOLD_WHITE}{repo_name}{RESET} found")
 
-    typer.echo("Connected: Read and Write access confirmed")
+    # Verify correct permissions (pull & push)
+    try:
+        service.verify_permissions(repo)
+    except service.MissingPermissionsError as exc:
+        abort(f"Missing permission '{exc}'")
+    except Exception as exc:
+        abort(f"An unexpected error occurred: {exc}")
 
-    # 6. Finalise
-    with access.get_db_connection() as con:
-        access.set_state(con, 'PAT', pat)
-        access.set_state(con, 'BACKUP_REPO_NAME', repo_name)
-        access.set_state(con, 'USERNAME', username)
-        access.set_state(con, 'SYNC_SETUP', 'SUCCESS')
+    echo_success("Read & write permissions confirmed")
 
-    typer.echo("Success: Sync configuration saved\n")
+    # Save the PAT within keyring, and save repo name to db
+    try:
+        service.finalise_backup_setup(pat, repo_name)
+    except Exception as exc:
+        abort(f"An unexpected error occurred: {exc}")
+
+    echo_success("Backup / sync configuration saved")
 
 @app.command(name="sync")
 def sync() -> None:

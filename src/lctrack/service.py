@@ -1,12 +1,12 @@
 import random
 import sqlite3
-import keyring
-import github
 from datetime import datetime
 
+import github
+import keyring
 from github.AuthenticatedUser import AuthenticatedUser
 from github.NamedUser import NamedUser
-
+from github.Repository import Repository
 from lctrack.constants import DIFF_COLOUR, RESET, YELLOW
 
 from . import access
@@ -224,31 +224,57 @@ def build_entry_log() -> str:
     finally:
         con.close()
 
-def auth_user(pat : str) -> github.Github:
+def auth_user(pat : str) -> tuple[github.Github, AuthenticatedUser]:
     g = github.Github(
         auth=github.Auth.Token(pat)
     )
 
-    user : NamedUser | AuthenticatedUser = g.get_user()
+    user : NamedUser | AuthenticatedUser = g.get_user() # Lazy auth
 
     # Forces a request to fetch the login
-    user.login # May raise a GithubException for error status codes
+    _ = user.login # May raise a GithubException for error status codes
 
-    return g, user.login
+    assert isinstance(user, AuthenticatedUser)
 
+    return g, user
 
+def verify_repository(user : AuthenticatedUser, repo_name : str) -> Repository:
+    return user.get_repo(repo_name)
 
+def verify_permissions(repo: Repository):
+    p = repo.permissions
 
-    
+    if not p.push and not p.pull:
+        raise MissingPermissionsError("push & pull")
 
-class FailedAuth(Exception):
+    if not p.push:
+        raise MissingPermissionsError("push")
+
+    if not p.pull:
+        raise MissingPermissionsError("pull")
+
+def finalise_backup_setup(pat : str, repo_name: str):
+    con = access.get_db_connection()
+
+    try:
+        set_pat(pat)
+        access.set_state(con, "BACKUP_REPO_NAME", repo_name)
+        access.set_state(con, "SYN_SETUP", "SUCCESS")
+        con.commit()
+    finally:
+        con.close()
+
+class MissingPermissionsError(Exception):
+    pass
+
+class FailedAuthError(Exception):
     pass
 
 def set_pat(pat : str) -> None:
-    keyring.set_password("lc-track", "GithubPAT", pat)
+    keyring.set_password("lc-track", "gh_pat", pat)
 
-def get_pat() -> str:
-    keyring.get_password("lc-track", "GithubPAT")
+def get_pat() -> str | None:
+    return keyring.get_password("lc-track", "gh_pat")
 
 def recalc_problem_state(con : sqlite3.Connection, problem_id : int) -> None:
     entries : list[Entry] = access.get_entries_by_problem_id(con, problem_id)
