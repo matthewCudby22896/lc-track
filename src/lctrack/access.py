@@ -5,6 +5,7 @@ import sqlite3
 from pathlib import Path
 
 import git
+import keyring
 
 from .constants import DB_FILE, LOCAL_EVENT_LOG
 from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
@@ -51,21 +52,24 @@ CREATE TABLE IF NOT EXISTS app_state (
 """
 
 def get_db_connection() -> sqlite3.Connection:
-    con = sqlite3.connect(DB_FILE)
+    con = sqlite3.connect(
+        DB_FILE,
+        autocommit=False,
+        isolation_level=None # Disables opening transactions implicitly
+    )
     con.execute("PRAGMA foreign_keys = ON;")
-    con.isolation_level = "DEFERRED"
+
     return con
 
 def db_exists() -> bool:
     return os.path.exists(DB_FILE)
 
-def init_db() -> None:
-    with get_db_connection() as con:
-        cur = con.cursor()
-        try:
-            cur.executescript(DB_SCHEMA_STMT)
-        finally:
-            cur.close()
+def init_db(con : sqlite3.Connection) -> None:
+    cur = con.cursor()
+    try:
+        cur.executescript(DB_SCHEMA_STMT)
+    finally:
+        cur.close()
 
 def check_repo(path : Path) -> bool:
     try:
@@ -194,10 +198,10 @@ def process_event(con : sqlite3.Connection, event : BaseEvent) -> None:
             add_entry(
                 con,
                 Entry(
-                    event.entry_uuid,
                     event.problem_id,
                     event.confidence,
-                    event.ts
+                    event.ts,
+                    event.entry_uuid
                 )
             )
         case RmEntryEvent():
@@ -274,6 +278,7 @@ def clear_entries_table(con : sqlite3.Connection) -> None:
 # TABLE : state
 
 def get_state(con : sqlite3.Connection, key : str) -> str | None:
+    cur = con.cursor()
     try:
         cur = con.execute("SELECT value FROM app_state WHERE key = ?", (key, ))
         row = cur.fetchone()
@@ -290,12 +295,25 @@ def set_state(con : sqlite3.Connection, key: str, value: str) -> None:
     finally:
         cur.close()
 
+def set_pat(pat : str) -> None:
+    keyring.set_password("lc-track", "gh_pat", pat)
 
+def get_pat() -> str | None:
+    return keyring.get_password("lc-track", "gh_pat")
 
+def populate_db_with_problem_set(con : sqlite3.Connection,
+                                 problems : list[tuple[int, str, str, int]],
+                                 topics : list[tuple[str, str]],
+                                 problem_topics : list[tuple[int, str]]) -> None:
+    cur = con.cursor()
+    try:
+        stmt = "INSERT INTO problems (id, slug, title, difficulty) VALUES (?, ?, ?, ?);"
+        cur.executemany(stmt, problems)
 
+        stmt = "INSERT INTO topics (topic_slug, topic_title) VALUES (?, ?);"
+        cur.executemany(stmt, topics)
 
-
-
-
-
-
+        stmt = "INSERT INTO problem_topic (problem_id, topic_slug) VALUES (?, ?);"
+        cur.executemany(stmt, problem_topics)
+    finally:
+        cur.close()

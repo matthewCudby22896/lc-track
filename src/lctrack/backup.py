@@ -1,12 +1,19 @@
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import git
+import github
+from github.AuthenticatedUser import AuthenticatedUser
+from github.NamedUser import NamedUser
+from github.Repository import Repository
+from lctrack.service import SM2
+
 from . import access
-from .constants import LOCAL_EVENT_LOG
+from .constants import BACKUP_EVENT_LOG, BACKUP_REPO_DIR, LOCAL_EVENT_LOG, TMP_EVENT_LOG
 from .ds import AddEntryEvent, BaseEvent, RmEntryEvent
-from .utility import SM2
 
 
 def merge_event_logs(hist1 : Path, hist2 : Path) -> list[BaseEvent]:
@@ -84,8 +91,6 @@ def update_state_from_local_event_log() -> None:
         for event in events:
             access.process_event(con, event)
 
-        print("All events processed")
-
         # 3. Update the state of all problems based of the entries under the entries table
         entries = access.get_all_entries(con)
 
@@ -107,4 +112,98 @@ def update_state_from_local_event_log() -> None:
 
         access.bulk_update_problem_state(con, new_states)
 
+# BACKUP/SYNC SETUP
 
+def auth_github_user(pat : str) -> tuple[github.Github, AuthenticatedUser]:
+    g = github.Github(
+        auth=github.Auth.Token(pat)
+    )
+
+    user : NamedUser | AuthenticatedUser = g.get_user() # Lazy auth
+
+    # Forces a request to fetch the login
+    _ = user.login # May raise a GithubException for error status codes
+
+    assert isinstance(user, AuthenticatedUser)
+
+    return g, user
+
+def get_github_repo(user : AuthenticatedUser, repo_name : str) -> Repository:
+    return user.get_repo(repo_name)
+
+def verify_repo_permissions(repo: Repository):
+    p = repo.permissions
+
+    if not p.push and not p.pull:
+        raise MissingPermissionsError("push & pull")
+
+    if not p.push:
+        raise MissingPermissionsError("push")
+
+    if not p.pull:
+        raise MissingPermissionsError("pull")
+
+def finalise_backup_setup(pat : str, repo_name: str, user : str):
+    con = access.get_db_connection()
+
+    try:
+        access.set_pat(pat)
+        access.set_state(con, 'BACKUP_REPO_NAME', repo_name)
+        access.set_state(con, 'USER', user)
+        con.commit()
+    finally:
+        con.close()
+
+# SYNC LOGIC
+
+def get_repo(auth_url,
+             report_func: Callable[[str], None] = lambda _: None) -> git.Repo:
+    if not access.check_repo(BACKUP_REPO_DIR):
+        repo = git.Repo.clone_from(auth_url, BACKUP_REPO_DIR)
+        report_func(f"Cloned backup repo to '{BACKUP_REPO_DIR.relative_to(Path.home())}'")
+    else:
+        repo = git.Repo(BACKUP_REPO_DIR)
+        repo.remotes.origin.set_url(auth_url)
+        report_func(f"Backup repo found '{BACKUP_REPO_DIR}'")
+
+    return repo
+
+def populate_empty_repo(repo : git.Repo, report_func: Callable[[str], None] = lambda _ : None) -> None:
+    readme_file = BACKUP_REPO_DIR / "README.md"
+    with open(readme_file, 'w', encoding='utf-8') as f:
+        f.write("# lc-track remote backup\n Event log backup for `lc-track`")
+    repo.index.add(['README.md'])
+    repo.index.commit("Initial commit")
+    repo.remotes.origin.push('main:main')
+
+def event_log_sync(repo : git.Repo, report_func: Callable[[str], None] = lambda _ : None) -> None:
+    repo.remotes.origin.pull()
+    report_func("Latest remote event log pulled")
+
+    event_log : list[BaseEvent] = merge_event_logs(BACKUP_EVENT_LOG, LOCAL_EVENT_LOG)
+    report_func("Event logs merged")
+
+    # Atomic writes
+    for target_path in [BACKUP_EVENT_LOG, LOCAL_EVENT_LOG]:
+        write_event_log(TMP_EVENT_LOG, event_log)
+        TMP_EVENT_LOG.replace(target_path)
+
+    update_state_from_local_event_log()
+    report_func("Local state updated")
+
+    repo.index.add([BACKUP_EVENT_LOG.name])
+
+    if repo.index.diff("HEAD"):
+        repo.index.commit("Sync: merged event logs")
+        repo.remotes.origin.push()
+        report_func("Merged event log pushed to remote")
+    else:
+        report_func("Remote is already up-to-date")
+
+# ERRORS
+
+class MissingPermissionsError(Exception):
+    pass
+
+class FailedAuthError(Exception):
+    pass
