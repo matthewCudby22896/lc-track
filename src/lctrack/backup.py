@@ -200,8 +200,6 @@ def event_log_sync(repo : git.Repo, report_func: Callable[[str], None] = lambda 
     else:
         report_func("Remote is already up-to-date")
 
-    report_func("Program state re-initialised from event log")
-
 # ERRORS
 
 class MissingPermissionsError(Exception):

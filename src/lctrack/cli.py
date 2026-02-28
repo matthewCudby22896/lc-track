@@ -244,7 +244,7 @@ def setup_backup():
 
     # Authenticate
     try:
-        _, user = service.auth_user(pat)
+        _, user = backup.auth_github_user(pat)
 
     except github.BadCredentialsException:
         abort("Bad credentials")
@@ -255,7 +255,7 @@ def setup_backup():
 
     # Verify existence of repository for authenticated user
     try:
-        repo = service.verify_repository(user, repo_name)
+        repo = backup.get_github_repo(user, repo_name)
     except github.UnknownObjectException:
         abort(f"Repository '{repo_name}' not found")
     except Exception as exc:
@@ -265,8 +265,8 @@ def setup_backup():
 
     # Verify correct permissions (pull & push)
     try:
-        service.verify_permissions(repo)
-    except service.MissingPermissionsError as exc:
+        backup.verify_repo_permissions(repo)
+    except backup.MissingPermissionsError as exc:
         abort(f"Missing permission '{exc}'")
     except Exception as exc:
         abort(f"An unexpected error occurred: {exc}")
@@ -275,7 +275,7 @@ def setup_backup():
 
     # Save the PAT within keyring, and save repo name to db
     try:
-        service.finalise_backup_setup(pat, repo_name, user.login)
+        backup.finalise_backup_setup(pat, repo_name, user.login)
     except Exception as exc:
         abort(f"An unexpected error occurred: {exc}")
 
