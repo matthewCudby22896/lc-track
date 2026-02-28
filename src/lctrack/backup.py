@@ -84,8 +84,6 @@ def update_state_from_local_event_log() -> None:
         for event in events:
             access.process_event(con, event)
 
-        print("All events processed")
-
         # 3. Update the state of all problems based of the entries under the entries table
         entries = access.get_all_entries(con)
 

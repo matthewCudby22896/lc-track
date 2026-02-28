@@ -63,13 +63,12 @@ def get_db_connection() -> sqlite3.Connection:
 def db_exists() -> bool:
     return os.path.exists(DB_FILE)
 
-def init_db() -> None:
-    with get_db_connection() as con:
-        cur = con.cursor()
-        try:
-            cur.executescript(DB_SCHEMA_STMT)
-        finally:
-            cur.close()
+def init_db(con : sqlite3.Connection) -> None:
+    cur = con.cursor()
+    try:
+        cur.executescript(DB_SCHEMA_STMT)
+    finally:
+        cur.close()
 
 def check_repo(path : Path) -> bool:
     try:
@@ -278,6 +277,7 @@ def clear_entries_table(con : sqlite3.Connection) -> None:
 # TABLE : state
 
 def get_state(con : sqlite3.Connection, key : str) -> str | None:
+    cur = con.cursor()
     try:
         cur = con.execute("SELECT value FROM app_state WHERE key = ?", (key, ))
         row = cur.fetchone()

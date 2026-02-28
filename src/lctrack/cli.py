@@ -2,8 +2,10 @@ import datetime
 from typing import Annotated
 
 import git
+from git.exc import GitCommandError
 import github
 import typer
+from pathlib import Path
 
 from . import access, backup, service
 from .constants import (
@@ -26,6 +28,7 @@ app = typer.Typer(add_completion=False)
 def fmt_date(ts):
     return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M') if ts else "Never"
 
+# TODO: Refactor / improve
 @app.callback()
 def main():
     """
@@ -33,13 +36,12 @@ def main():
     """
     if not access.db_exists():
         typer.echo("Initialising lc-track local database...")
-        access.init_db()
+        service.init_db()
 
     if access.db_exists():
-        with access.get_db_connection() as con:
-            if access.get_state(con, "initial_sync") != "complete":
-                initial_sync()
-                typer.echo(f"{BOLD_WHITE}lc-track setup complete.{RESET}\n")
+        if service.get_state('initial_sync') != "complete":
+            initial_sync()
+            echo_success(f"{BOLD_WHITE}lc-track setup complete.{RESET}\n")
 
 @app.command(name="study")
 def study() -> None:
@@ -224,18 +226,18 @@ def log():
 
 # TODO: Possibly make a request to Github to determine the permissions of the token
 # Outputting them to the user, and warning them if it's missing required permissions
-@app.command(name="set-pat")
-def set_pat():
-    """
-    Update / set your GitHub Personal Access Token in the local database.
-    """
-    pat = typer.prompt("GitHub Personal Access Token", hide_input=True)
-    try:
-        service.set_pat(pat)
-    except Exception as exc:
-        abort(f"An unexpected error occurred: {exc}")
+# @app.command(name="set-pat")
+# def set_pat():
+#     """
+#     Update / set your GitHub Personal Access Token in the local database.
+#     """
+#     pat = typer.prompt("GitHub Personal Access Token", hide_input=True)
+#     try:
+#         service.set_pat(pat)
+#     except Exception as exc:
+#         abort(f"An unexpected error occurred: {exc}")
 
-    echo_success("Github PAT saved")
+#     echo_success("Github PAT saved")
 
 def abort(msg: str) -> None:
     typer.echo(f"{RED}[error]{RESET} {msg}")
@@ -295,13 +297,13 @@ def setup_backup():
 
     # Save the PAT within keyring, and save repo name to db
     try:
-        service.finalise_backup_setup(pat, repo_name)
+        service.finalise_backup_setup(pat, repo_name, user.login)
     except Exception as exc:
         abort(f"An unexpected error occurred: {exc}")
 
     echo_success("Backup / sync configuration saved")
 
-# TODO: Rework planned
+# TODO: Refactor in progress
 @app.command(name="sync")
 def sync() -> None:
     """
@@ -314,78 +316,34 @@ def sync() -> None:
     4. Replays the unified event log to rebuil the local SQLite database.
     """
 
-    # 1. Configuration Check
-    with access.get_db_connection() as con:
-        if access.get_state(con, 'SYNC_SETUP') != 'SUCCESS':
-            typer.echo("Error: Sync not configured. Run `lc-track setup-backup` first.\n")
-            raise typer.Exit(1) from None
+    pat : str | None = service.get_pat()
+    if not pat:
+        abort("Github PAT not set. Refer to `lc-track setup-backup`")
+    
+    repo_name : str | None = service.get_repo_name() 
+    if not repo_name:
+        abort("Backup repo name unknown. Refer to `lc-track setup-backup`")
 
-        pat = access.get_state(con, 'PAT')
-        repo_name = access.get_state(con, 'BACKUP_REPO_NAME')
-        username = access.get_state(con, 'USERNAME')
-        auth_url = f"https://{pat}@github.com/{username}/{repo_name}.git"
+    user : str | None = service.get_user()
+    if not user:
+        abort("Github user unknown. Refer to `lc-track setup-backup`")
+        
+    auth_url = f"https://{pat}@github.com/{user}/{repo_name}.git"
 
-        # 2. Repository Initialisation
-        try:
-            if not access.check_repo(BACKUP_REPO_DIR):
-                typer.echo(f"Initialisation: Cloning remote backup to {BACKUP_REPO_DIR}...")
-                repo = git.Repo.clone_from(auth_url, BACKUP_REPO_DIR)
-            else:
-                repo = git.Repo(BACKUP_REPO_DIR)
-                repo.remotes.origin.set_url(auth_url)
-        except Exception as exc:
-            typer.echo(f"Failed to initialise local repository from remote:\n\t{exc}\n")
-            raise typer.Exit(1) from None
-
-        # 3. Handle Empty Remote (First-time use)
-        if not repo.refs:
-            try:
-                typer.echo("Setup: Initialising new remote repository with README.md...")
-                readme_file = BACKUP_REPO_DIR / "README.md"
-                with open(readme_file, 'w', encoding='utf-8') as f:
-                    f.write("# lc-track remote backup\n Event log backup for LeetCode tracking.")
-
-                repo.index.add(['README.md'])
-                repo.index.commit("Initial setup")
-                repo.remotes.origin.push('main:main')
-
-            except Exception as exc:
-                typer.echo(f"Failed to handle initialisation of empty repository:\n\t{exc}\n")
-                raise typer.Exit(1) from None
-
-    # 4. The Sync Process
+    # Get repo
     try:
-        # Step 1: Pull
-        typer.echo("Sync [1/4]: Fetching latest remote event log...")
-        repo.remotes.origin.pull()
-
-        # Step 2: Merge logic
-        typer.echo("Sync [2/4]: Merging local and backup event logs...")
-        event_log : list[BaseEvent] = backup.merge_event_logs(BACKUP_EVENT_LOG, LOCAL_EVENT_LOG)
-
-        # Atomic writes to both destinations
-        for target_path in [BACKUP_EVENT_LOG, LOCAL_EVENT_LOG]:
-            backup.write_event_log(TMP_EVENT_LOG, event_log)
-            TMP_EVENT_LOG.replace(target_path)
-
-        # Step 3: Push back to remote
-        typer.echo("Sync [3/4]: Uploading synchronised event log to GitHub...")
-        repo.index.add([BACKUP_EVENT_LOG.name])
-        if repo.is_dirty():
-            repo.index.commit("Sync: Combined local and remote histories")
-            repo.remotes.origin.push()
-        else:
-            typer.echo("Status: Remote already up to date.")
-
-        # Step 4: Database Rebuild
-        typer.echo("Sync [4/4]: Rebuilding local database state from event log...")
-        backup.update_state_from_local_event_log()
-
-        typer.echo("Done: Sync successful. Local state and remote state are now in synchronised state.\n")
+        repo = service.get_repo(auth_url, report_func=echo_success)
+        if not repo.refs:
+            service.populate_empty_repo(repo, report_func=echo_success)
 
     except Exception as exc:
-        typer.echo(f"Error: An unexpected error occurred during sync:\n\t{exc}\n")
-        raise typer.Exit(1) from None
+        abort(f"An unexpected error occurred: {exc}")
+    
+    # Sync
+    try:
+        service.event_log_sync(repo, report_func=echo_success)
+    except Exception as exc:
+        abort(f"An unexpected error occurred: {exc}")
 
 if __name__ == "__main__":
     app()

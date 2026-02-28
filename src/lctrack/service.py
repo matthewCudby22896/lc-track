@@ -1,17 +1,30 @@
+from pathlib import Path
 import random
 import sqlite3
 from datetime import datetime
+from typing import Callable
 
 import github
 import keyring
 from github.AuthenticatedUser import AuthenticatedUser
 from github.NamedUser import NamedUser
 from github.Repository import Repository
-from lctrack.constants import DIFF_COLOUR, RESET, YELLOW
+
+import git
+from . import backup
+from .constants import BACKUP_EVENT_LOG, BACKUP_REPO_DIR, DIFF_COLOUR, LOCAL_EVENT_LOG, RESET, TMP_EVENT_LOG, YELLOW
 
 from . import access
-from .ds import AddEntryEvent, Entry, Problem, RmEntryEvent
+from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
 
+def init_db() -> None:
+    con = access.get_db_connection()
+
+    try:
+        access.init_db(con)
+        con.commit()
+    finally:
+        con.close()
 
 def get_problem_to_study() -> Problem | None:
     con = access.get_db_connection()
@@ -253,16 +266,85 @@ def verify_permissions(repo: Repository):
     if not p.pull:
         raise MissingPermissionsError("pull")
 
-def finalise_backup_setup(pat : str, repo_name: str):
+def finalise_backup_setup(pat : str, repo_name: str, user : str):
     con = access.get_db_connection()
 
     try:
         set_pat(pat)
-        access.set_state(con, "BACKUP_REPO_NAME", repo_name)
-        access.set_state(con, "SYN_SETUP", "SUCCESS")
+        access.set_state(con, 'BACKUP_REPO_NAME', repo_name)
+        access.set_state(con, 'USER', user)
         con.commit()
     finally:
         con.close()
+
+def get_repo_name() -> None | str:
+    con = access.get_db_connection()
+
+    try:
+        return access.get_state(con, 'BACKUP_REPO_NAME')
+    finally:
+        con.close()
+
+def get_state(key : str) -> None | str:
+    con = access.get_db_connection()
+    try:
+        return access.get_state(con, 'BACKUP_REPO_NAME')
+    finally:
+        con.close()
+
+
+def get_user() -> None | str:
+    con = access.get_db_connection()
+
+    try:
+        return access.get_state(con, 'USER')
+    finally:
+        con.close()
+
+# TODO:Move below methods to backup.py & improve code quality
+def get_repo(auth_url,
+                        report_func: Callable[[str], None] = lambda _: None) -> git.Repo:
+    if not access.check_repo(BACKUP_REPO_DIR):
+        repo = git.Repo.clone_from(auth_url, BACKUP_REPO_DIR)
+        report_func(f"Cloned backup repo to '{BACKUP_REPO_DIR.relative_to(Path.home())}'")
+    else: 
+        repo = git.Repo(BACKUP_REPO_DIR)
+        repo.remotes.origin.set_url(auth_url)
+        report_func(f"Backup repo found '{BACKUP_REPO_DIR}'")
+    
+    return repo
+
+def populate_empty_repo(repo : git.Repo, report_func: Callable[[str], None] = lambda _ : None) -> None:
+    readme_file = BACKUP_REPO_DIR / "README.md"
+    with open(readme_file, 'w', encoding='utf-8') as f:
+        f.write("# lc-track remote backup\n Event log backup for `lc-track`")
+    repo.index.add(['README.md'])
+    repo.index.commit("Initial commit")
+    repo.description("description")
+    repo.remotes.origin.push('main:main')
+    report_func()
+
+def event_log_sync(repo : git.Repo, report_func: Callable[[str], None] = lambda _ : None) -> None:
+    repo.remotes.origin.pull()
+    report_func("Latest remote event log succesfully pulled")
+
+    event_log : list[BaseEvent] = backup.merge_event_logs(BACKUP_EVENT_LOG, LOCAL_EVENT_LOG)
+    report_func("Local and remote event logs merged")
+
+    # Atomic writes to both destinations
+    for target_path in [BACKUP_EVENT_LOG, LOCAL_EVENT_LOG]:
+        backup.write_event_log(TMP_EVENT_LOG, event_log)
+        TMP_EVENT_LOG.replace(target_path)
+
+    repo.index.add([BACKUP_EVENT_LOG.name])
+    if repo.is_dirty():
+        repo.remotes.origin.push()
+        report_func("Merged event log pushed to remote")
+    else:
+        report_func("Remote already up to date")
+    
+    backup.update_state_from_local_event_log()
+    report_func("Program state re-initialised from event log")
 
 class MissingPermissionsError(Exception):
     pass
