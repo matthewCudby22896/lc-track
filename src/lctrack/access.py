@@ -5,6 +5,7 @@ import sqlite3
 from pathlib import Path
 
 import git
+import keyring
 
 from .constants import DB_FILE, LOCAL_EVENT_LOG
 from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
@@ -294,12 +295,25 @@ def set_state(con : sqlite3.Connection, key: str, value: str) -> None:
     finally:
         cur.close()
 
+def set_pat(pat : str) -> None:
+    keyring.set_password("lc-track", "gh_pat", pat)
 
+def get_pat() -> str | None:
+    return keyring.get_password("lc-track", "gh_pat")
 
+def populate_db_with_problem_set(con : sqlite3.Connection,
+                                 problems : list[tuple[int, str, str, int]],
+                                 topics : list[tuple[str, str]],
+                                 problem_topics : list[tuple[int, str]]) -> None:
+    cur = con.cursor()
+    try:
+        stmt = "INSERT INTO problems (id, slug, title, difficulty) VALUES (?, ?, ?, ?);"
+        cur.executemany(stmt, problems)
 
+        stmt = "INSERT INTO topics (topic_slug, topic_title) VALUES (?, ?);"
+        cur.executemany(stmt, topics)
 
-
-
-
-
-
+        stmt = "INSERT INTO problem_topic (problem_id, topic_slug) VALUES (?, ?);"
+        cur.executemany(stmt, problem_topics)
+    finally:
+        cur.close()

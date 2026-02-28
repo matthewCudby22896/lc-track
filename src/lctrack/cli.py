@@ -1,47 +1,41 @@
 import datetime
 from typing import Annotated
 
-import git
-from git.exc import GitCommandError
 import github
 import typer
-from pathlib import Path
 
 from . import access, backup, service
 from .constants import (
-    BACKUP_EVENT_LOG,
-    BACKUP_REPO_DIR,
     BOLD_WHITE,
     DIFF_COLOUR,
     GREEN,
-    LOCAL_EVENT_LOG,
     RED,
     RESET,
-    TMP_EVENT_LOG,
     YELLOW,
 )
-from .ds import BaseEvent
-from .utility import initial_sync
 
 app = typer.Typer(add_completion=False)
 
 def fmt_date(ts):
     return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M') if ts else "Never"
 
-# TODO: Refactor / improve
+# TODO: Switch to a better system of tracking database migrations
 @app.callback()
 def main():
     """
-    LeetCode-Track CLI
+    LeetCode-Track CLII
     """
     if not access.db_exists():
-        typer.echo("Initialising lc-track local database...")
         service.init_db()
+        echo_success("Local database initialised")
 
-    if access.db_exists():
-        if service.get_state('initial_sync') != "complete":
-            initial_sync()
-            echo_success(f"{BOLD_WHITE}lc-track setup complete.{RESET}\n")
+    if service.get_state('initial_sync') != 'complete':
+        try:
+            service.problem_set_sync()
+        except Exception as exc:
+            abort(f"An unexpected error occurred whilst syncing problem set: {exc}")
+
+        echo_success(f"{BOLD_WHITE}lc-track setup complete{RESET}")
 
 @app.command(name="study")
 def study() -> None:
@@ -300,32 +294,32 @@ def sync() -> None:
     4. Replays the unified event log to rebuil the local SQLite database.
     """
 
-    pat : str | None = service.get_pat()
+    pat : str | None = access.get_pat()
     if not pat:
         abort("Github PAT not set. Refer to `lc-track setup-backup`")
-    
-    repo_name : str | None = service.get_repo_name() 
+
+    repo_name : str | None = service.get_repo_name()
     if not repo_name:
         abort("Backup repo name unknown. Refer to `lc-track setup-backup`")
 
     user : str | None = service.get_user()
     if not user:
         abort("Github user unknown. Refer to `lc-track setup-backup`")
-        
+
     auth_url = f"https://{pat}@github.com/{user}/{repo_name}.git"
 
     # Get repo
     try:
-        repo = service.get_repo(auth_url, report_func=echo_success)
+        repo = backup.get_repo(auth_url, report_func=echo_success)
         if not repo.refs:
-            service.populate_empty_repo(repo, report_func=echo_success)
+            backup.populate_empty_repo(repo, report_func=echo_success)
 
     except Exception as exc:
         abort(f"An unexpected error occurred: {exc}")
-    
+
     # Sync
     try:
-        service.event_log_sync(repo, report_func=echo_success)
+        backup.event_log_sync(repo, report_func=echo_success)
     except Exception as exc:
         abort(f"An unexpected error occurred: {exc}")
 

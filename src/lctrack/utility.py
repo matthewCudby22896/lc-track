@@ -1,52 +1,10 @@
 import datetime
-import logging
-
-from . import access
-from .lc_client import fetch_all_problems
 
 DIFF_TO_INT = {
     "Hard" : 2,
     "Medium" : 1,
     "Easy" : 0
 }
-
-def initial_sync() -> None:
-    problems_raw = fetch_all_problems()
-
-    try:
-        problems = [
-            (x['questionFrontendId'], x['titleSlug'], x['title'], DIFF_TO_INT[x['difficulty']])
-            for x in problems_raw
-        ]
-
-        topics = {(t['slug'], t['name']) for p in problems_raw for t in p['topicTags']}
-
-        problem_topics = [(p['questionFrontendId'], t['slug']) for p in problems_raw for t in p['topicTags']]
-
-    except Exception as e:
-        logging.error(f"Failed to parse problem set fetched from leetcode.com: {e}")
-        return
-
-    con = access.get_db_connection()
-    try:
-        with con:
-            cur = con.cursor()
-
-            stmt = "INSERT INTO problems (id, slug, title, difficulty) VALUES (?, ?, ?, ?);"
-            cur.executemany(stmt, problems)
-
-            stmt = "INSERT INTO topics (topic_slug, topic_title) VALUES (?, ?);"
-            cur.executemany(stmt, topics)
-
-            stmt = "INSERT INTO problem_topic (problem_id, topic_slug) VALUES (?, ?);"
-            cur.executemany(stmt, problem_topics)
-
-            access.set_state(con, "initial_sync", "complete")
-
-    except Exception as e:
-        logging.error(f"Failed to sync problem set with leetcode.com: {e}")
-    finally:
-        con.close()
 
 def date_from_ts(unix_ts : int) -> str:
     return datetime.datetime.fromtimestamp(unix_ts).strftime("%Y-%m-%d %H:%M")

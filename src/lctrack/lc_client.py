@@ -14,6 +14,7 @@ session.headers.update({
     "Referer": "https://leetcode.com"
 })
 
+# TODO: Refactor
 def fetch_all_problems() -> list[dict[str, Any]]:
     url = "https://leetcode.com/graphql/"
     limit = 100
@@ -49,7 +50,7 @@ def fetch_all_problems() -> list[dict[str, Any]]:
     }
     total = None
 
-    typer.echo("Fetching leetcode problem set from leetcode.com...")
+    typer.echo("Fetching problem set from leetcode.com...")
 
     try:
       # Make initial request (first 100 problems)
@@ -80,9 +81,6 @@ def fetch_all_problems() -> list[dict[str, Any]]:
 
 
     except Exception as exc:
-      typer.echo(f"An unexpected exception occured whilst fetching problems from leetcode.com: {exc}")
-      raise typer.Exit(1) from None
-
-    typer.echo(f"All {len(all_questions)} problems succesfully fetched and stored from leetcode.com")
+      raise Exception(f"An unexpected exception occured whilst fetching problems from leetcode.com: {exc}") from None
 
     return all_questions
