@@ -223,22 +223,6 @@ def log():
 
     typer.echo_via_pager(text)
 
-
-# TODO: Possibly make a request to Github to determine the permissions of the token
-# Outputting them to the user, and warning them if it's missing required permissions
-# @app.command(name="set-pat")
-# def set_pat():
-#     """
-#     Update / set your GitHub Personal Access Token in the local database.
-#     """
-#     pat = typer.prompt("GitHub Personal Access Token", hide_input=True)
-#     try:
-#         service.set_pat(pat)
-#     except Exception as exc:
-#         abort(f"An unexpected error occurred: {exc}")
-
-#     echo_success("Github PAT saved")
-
 def abort(msg: str) -> None:
     typer.echo(f"{RED}[error]{RESET} {msg}")
     raise typer.Exit(1) from None
