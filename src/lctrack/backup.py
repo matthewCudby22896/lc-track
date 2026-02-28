@@ -9,11 +9,11 @@ import github
 from github.AuthenticatedUser import AuthenticatedUser
 from github.NamedUser import NamedUser
 from github.Repository import Repository
+from lctrack.service import SM2
 
 from . import access
 from .constants import BACKUP_EVENT_LOG, BACKUP_REPO_DIR, LOCAL_EVENT_LOG, TMP_EVENT_LOG
 from .ds import AddEntryEvent, BaseEvent, RmEntryEvent
-from .utility import SM2
 
 
 def merge_event_logs(hist1 : Path, hist2 : Path) -> list[BaseEvent]:
@@ -155,7 +155,6 @@ def finalise_backup_setup(pat : str, repo_name: str, user : str):
         con.close()
 
 # SYNC LOGIC
-
 
 def get_repo(auth_url,
              report_func: Callable[[str], None] = lambda _: None) -> git.Repo:
