@@ -1,14 +1,12 @@
 import datetime
 import json
-import os
 import sqlite3
-from pathlib import Path
 
-import git
 import keyring
 
 from .constants import DB_FILE, LOCAL_EVENT_LOG
 from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
+
 
 def get_db_connection() -> sqlite3.Connection:
     con = sqlite3.connect(
@@ -273,7 +271,7 @@ def bootstap_db(con : sqlite3.Connection) -> None:
 
 def get_applied_migrations(con: sqlite3.Connection) -> set[str]:
     stmt = """
-    SELECT filename 
+    SELECT filename
     FROM schema_migrations;
     """
     cur = con.cursor()
@@ -285,7 +283,7 @@ def get_applied_migrations(con: sqlite3.Connection) -> set[str]:
 
 def record_migration(con: sqlite3.Connection, filename: str) -> None:
     stmt = """
-    INSERT INTO schema_migrations (filename) 
+    INSERT INTO schema_migrations (filename)
     VALUES (?);
     """
 

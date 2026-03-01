@@ -26,7 +26,7 @@ def main():
 
         if service.get_state('initial_sync') != 'complete':
             service.problem_set_sync(report_func=echo_success)
-        
+
             echo_success(f"{BOLD_WHITE}lc-track setup complete{RESET}")
 
     except Exception as exc:
@@ -46,7 +46,7 @@ def study() -> None:
 
     colour_code = DIFF_COLOUR.get(problem.difficulty_txt)
 
-    typer.echo(f"To study: LC{problem.id}. {problem.title} {colour_code}[{problem.difficulty_txt}]{RESET}\n")
+    typer.echo(f"{BOLD_WHITE}To study:{RESET} LC{problem.id}. {problem.title} {colour_code}[{problem.difficulty_txt}]{RESET}")
 
 @app.command(name="ls-active")
 def ls_active() -> None:
@@ -103,7 +103,7 @@ def activate(id: int) -> None:
         problem = service.activate_problem(id)
 
         problem_txt = f"LC{id}. {problem.title} [{DIFF_COLOUR[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
-        typer.echo(f"{BOLD_WHITE}Added to active study set:{RESET} {problem_txt}\n")
+        typer.echo(f"{BOLD_WHITE}Added to active study set:{RESET} {problem_txt}")
 
     except service.ProblemNotFoundError:
         abort(f"No problem found with id : '{id}'")
@@ -123,7 +123,7 @@ def deactivate(id: int) -> None:
         problem = service.deactivate_problem(id)
 
         problem_txt = f"LC{id}. {problem.title} [{DIFF_COLOUR[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]"
-        typer.echo(f"{BOLD_WHITE}Removed from active study set:{RESET} {problem_txt}\n")
+        typer.echo(f"{BOLD_WHITE}Removed from active study set:{RESET} {problem_txt}")
 
     except service.ProblemNotFoundError:
         abort(f"No problem found with id : '{id}'")
@@ -200,7 +200,7 @@ def rm_entry(entry_uuid : str) -> None:
     except Exception as exc:
         abort(f"An unexpected error occurred: {exc}")
 
-    typer.echo(f"Entry {YELLOW}{entry_uuid}{RESET} removed. LC {problem_id} state recalculated.\n")
+    typer.echo(f"Entry {YELLOW}{entry_uuid}{RESET} removed. LC {problem_id} state recalculated.")
 
 @app.command(name="log")
 def log():
@@ -250,7 +250,7 @@ def setup_backup():
     except Exception as exc:
         abort(f"An unexpected error occurred: {exc}")
 
-    echo_success(f"{BOLD_WHITE}{repo_name}{RESET} found")
+    echo_success(f"{BOLD_WHITE}{repo_name}{RESET} repo found")
 
     # Verify correct permissions (pull & push)
     try:
@@ -303,7 +303,7 @@ def sync() -> None:
             backup.populate_empty_repo(repo, report_func=echo_success)
 
         backup.event_log_sync(repo, report_func=echo_success)
-        
+
     except Exception as exc:
         abort(f"An unexpected error occurred: {exc}")
 

@@ -1,11 +1,11 @@
+import time
 from typing import Any
 
 import requests
-import typer
 from rich.progress import track
 
-ALL_PROBLEMS_URL = "https://leetcode.com/api/problems/all/"
 GRAPHQL_ENDPOINT = "https://leetcode.com/graphql"
+LIMIT = 100
 
 session = requests.Session()
 session.headers.update({
@@ -14,11 +14,7 @@ session.headers.update({
     "Referer": "https://leetcode.com"
 })
 
-# TODO: Refactor
 def fetch_all_problems() -> list[dict[str, Any]]:
-    url = "https://leetcode.com/graphql/"
-    limit = 100
-    skip = 0
 
     query = """
     query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {
@@ -43,44 +39,39 @@ def fetch_all_problems() -> list[dict[str, Any]]:
     }
     """
 
-    all_questions = []
+    problem_set : list[dict[str, Any]]= []
     payload : dict[str, Any]= {
         "query" : query,
-        "variables" : {"categorySlug": "", "skip": skip, "limit": limit, "filters": {}}
+        "variables" : {"categorySlug": "", "skip": 0, "limit": LIMIT, "filters": {}}
     }
+
     total = None
 
-    typer.echo("Fetching problem set from leetcode.com...")
-
     try:
-      # Make initial request (first 100 problems)
-      payload['variables']['skip'] = skip
-      res = session.post(url, json=payload)
-      res.raise_for_status()
+        res = session.post(GRAPHQL_ENDPOINT, json=payload)
+        res.raise_for_status()
+        data = res.json()
 
-      data = res.json()
-      total = data['data']['problemsetQuestionList']['totalNum'] # total no. problems to fetch
+        total = data['data']['problemsetQuestionList']['totalNum']
+        problem_set = extract_problem_batch(data)
 
-      question_batch = data['data']['problemsetQuestionList']['questions']
-      all_questions.extend(question_batch)
+        for skip in track(range(LIMIT, total, LIMIT), description="Fetch problem set"):
+            payload['variables']['skip'] = skip
 
-      # Fetch the rest
-      for skip in track(range(100, total, 100)):
-          payload['variables']['skip'] = skip
-          res = session.post(url, json=payload)
-          res.raise_for_status()
+            res = session.post(GRAPHQL_ENDPOINT, json=payload)
+            res.raise_for_status()
 
-          data = res.json()
+            batch_data = res.json()
+            problem_set.extend(extract_problem_batch(batch_data))
 
-          if total is None:
-              total = data['data']['problemsetQuestionList']['totalNum'] # The total number of questions
+            time.sleep(0.1)
 
-          # Extract the problems in this batch
-          question_batch = data['data']['problemsetQuestionList']['questions']
-          all_questions.extend(question_batch)
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Network error connecting to LeetCode: {e}") from None
+    except KeyError:
+        raise Exception("LeetCode API response format has changed.") from None
 
+    return problem_set
 
-    except Exception as exc:
-      raise Exception(f"An unexpected exception occured whilst fetching problems from leetcode.com: {exc}") from None
-
-    return all_questions
+def extract_problem_batch(data : dict[str, Any]) -> list[dict[str, Any]]:
+  return data['data']['problemsetQuestionList']['questions']

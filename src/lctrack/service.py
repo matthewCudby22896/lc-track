@@ -1,26 +1,17 @@
 import os
-from pathlib import Path
 import random
 import sqlite3
 from collections.abc import Callable
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from lctrack import lc_client
 
 from . import access
-from .constants import DIFF_COLOUR, RESET, YELLOW, MIGRATIONS_DIR
+from .constants import DIFF_COLOUR, MIGRATIONS_DIR, RESET, YELLOW
 from .ds import DIFF_TO_INT, AddEntryEvent, Entry, Problem, RmEntryEvent
 
-
-def init_db() -> None:
-    con = access.get_db_connection()
-
-    try:
-        access.init_db(con)
-        con.commit()
-    finally:
-        con.close()
 
 def get_problem_to_study() -> Problem | None:
     con = access.get_db_connection()
@@ -386,7 +377,7 @@ def prepare_cli_database() -> None:
 
         for migration in to_run:
             try:
-                with open(migration, 'r') as f:
+                with open(migration) as f:
                     sql_script = f.read()
 
                 # Attempt to apply the migration
@@ -400,7 +391,7 @@ def prepare_cli_database() -> None:
 
             except Exception as exc:
                 raise FailedMigrationError(f"Migration '{migration.name}' failed for reason: {exc}") from None
-        
+
     finally:
         con.close()
 
