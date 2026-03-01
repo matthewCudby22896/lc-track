@@ -1,8 +1,7 @@
-from typing import Any
 import time
+from typing import Any
 
 import requests
-import typer
 from rich.progress import track
 
 GRAPHQL_ENDPOINT = "https://leetcode.com/graphql"
@@ -47,31 +46,31 @@ def fetch_all_problems() -> list[dict[str, Any]]:
     }
 
     total = None
-    
+
     try:
         res = session.post(GRAPHQL_ENDPOINT, json=payload)
         res.raise_for_status()
         data = res.json()
-        
+
         total = data['data']['problemsetQuestionList']['totalNum']
         problem_set = extract_problem_batch(data)
 
         for skip in track(range(LIMIT, total, LIMIT), description="Fetch problem set"):
             payload['variables']['skip'] = skip
-            
+
             res = session.post(GRAPHQL_ENDPOINT, json=payload)
             res.raise_for_status()
-            
+
             batch_data = res.json()
             problem_set.extend(extract_problem_batch(batch_data))
-            
-            time.sleep(0.1) 
+
+            time.sleep(0.1)
 
     except requests.exceptions.RequestException as e:
-        raise Exception(f"Network error connecting to LeetCode: {e}")
+        raise Exception(f"Network error connecting to LeetCode: {e}") from None
     except KeyError:
-        raise Exception("LeetCode API response format has changed.")
-    
+        raise Exception("LeetCode API response format has changed.") from None
+
     return problem_set
 
 def extract_problem_batch(data : dict[str, Any]) -> list[dict[str, Any]]:
