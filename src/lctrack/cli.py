@@ -1,4 +1,3 @@
-import datetime
 from typing import Annotated
 
 import github
@@ -16,26 +15,22 @@ from .constants import (
 
 app = typer.Typer(add_completion=False)
 
-def fmt_date(ts):
-    return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M') if ts else "Never"
-
-# TODO: Switch to a better system of tracking database migrations
+# TODO: Switch to a better system of tracking database migrations (DONE :))
 @app.callback()
 def main():
     """
     LeetCode-Track CLII
     """
-    if not access.db_exists():
-        service.init_db()
-        echo_success("Local database initialised")
+    try:
+        service.prepare_cli_database()
 
-    if service.get_state('initial_sync') != 'complete':
-        try:
-            service.problem_set_sync()
-        except Exception as exc:
-            abort(f"An unexpected error occurred whilst syncing problem set: {exc}")
+        if service.get_state('initial_sync') != 'complete':
+            service.problem_set_sync(report_func=echo_success)
+        
+            echo_success(f"{BOLD_WHITE}lc-track setup complete{RESET}")
 
-        echo_success(f"{BOLD_WHITE}lc-track setup complete{RESET}")
+    except Exception as exc:
+        abort(f"An unexpected error occurred: {exc}")
 
 @app.command(name="study")
 def study() -> None:
@@ -217,12 +212,6 @@ def log():
 
     typer.echo_via_pager(text)
 
-def abort(msg: str) -> None:
-    typer.echo(f"{RED}[error]{RESET} {msg}")
-    raise typer.Exit(1) from None
-
-def echo_success(msg: str) -> None:
-    typer.echo(f"{GREEN}[success]{RESET} {msg}")
 
 @app.command(name="setup-backup")
 def setup_backup():
@@ -281,7 +270,6 @@ def setup_backup():
 
     echo_success("Backup / sync configuration saved")
 
-# TODO: Refactor in progress
 @app.command(name="sync")
 def sync() -> None:
     """
@@ -314,14 +302,17 @@ def sync() -> None:
         if not repo.refs:
             backup.populate_empty_repo(repo, report_func=echo_success)
 
-    except Exception as exc:
-        abort(f"An unexpected error occurred: {exc}")
-
-    # Sync
-    try:
         backup.event_log_sync(repo, report_func=echo_success)
+        
     except Exception as exc:
         abort(f"An unexpected error occurred: {exc}")
 
 if __name__ == "__main__":
     app()
+
+def abort(msg: str) -> None:
+    typer.echo(f"{RED}[error]{RESET} {msg}")
+    raise typer.Exit(1) from None
+
+def echo_success(msg: str) -> None:
+    typer.echo(f"{GREEN}[success]{RESET} {msg}")

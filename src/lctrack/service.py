@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 import random
 import sqlite3
 from collections.abc import Callable
@@ -7,7 +9,7 @@ from typing import Any
 from lctrack import lc_client
 
 from . import access
-from .constants import DIFF_COLOUR, RESET, YELLOW
+from .constants import DIFF_COLOUR, RESET, YELLOW, MIGRATIONS_DIR
 from .ds import DIFF_TO_INT, AddEntryEvent, Entry, Problem, RmEntryEvent
 
 
@@ -246,7 +248,6 @@ def get_state(key : str) -> None | str:
     finally:
         con.close()
 
-
 def get_user() -> None | str:
     con = access.get_db_connection()
 
@@ -287,17 +288,15 @@ def calculate_new_state(n : int, ef : float, i : int, confidence : int, now_ts :
 
 def problem_set_sync(report_func : Callable[[str], None] = lambda _ : None) -> None:
     raw_problem_set = lc_client.fetch_all_problems()
-    report_func("Fetched problem set from leetcode.com")
 
     problems, topics, problem_topics = parse_raw_problem_set(raw_problem_set)
-    report_func("Parsed problem set")
 
     con = access.get_db_connection()
     try:
         access.populate_db_with_problem_set(con, problems, topics, problem_topics)
         access.set_state(con, 'initial_sync', 'complete')
         con.commit()
-        report_func("Problem set saved")
+        report_func("leetcode.com problem set succesfully saved")
     finally:
         con.close()
 
@@ -370,3 +369,42 @@ def SM2(grade : int,
             easiness_factor = 1.3
 
         return repetition_num, easiness_factor, interval
+
+def prepare_cli_database() -> None:
+    con = access.get_db_connection()
+
+    try:
+        access.bootstap_db(con)
+        applied_migrations = access.get_applied_migrations(con)
+
+        migrations = [f for f in os.listdir(MIGRATIONS_DIR) if f.endswith('.sql')]
+        migrations.sort()
+
+        to_run = [Path(MIGRATIONS_DIR) / Path(f) for f in migrations if f not in applied_migrations]
+        if not to_run:
+            return
+
+        for migration in to_run:
+            try:
+                with open(migration, 'r') as f:
+                    sql_script = f.read()
+
+                # Attempt to apply the migration
+                con.executescript(sql_script)
+
+                # Record it's successful application
+                access.record_migration(con, migration.name)
+
+                # Commit now to avoid repeated work
+                con.commit()
+
+            except Exception as exc:
+                raise FailedMigrationError(f"Migration '{migration.name}' failed for reason: {exc}") from None
+        
+    finally:
+        con.close()
+
+class FailedMigrationError(Exception):
+    pass
+
+

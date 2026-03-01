@@ -158,7 +158,7 @@ def finalise_backup_setup(pat : str, repo_name: str, user : str):
 
 def get_repo(auth_url,
              report_func: Callable[[str], None] = lambda _: None) -> git.Repo:
-    if not access.check_repo(BACKUP_REPO_DIR):
+    if not check_repo(BACKUP_REPO_DIR):
         repo = git.Repo.clone_from(auth_url, BACKUP_REPO_DIR)
         report_func(f"Cloned backup repo to '{BACKUP_REPO_DIR.relative_to(Path.home())}'")
     else:
@@ -167,6 +167,18 @@ def get_repo(auth_url,
         report_func(f"Backup repo found '{BACKUP_REPO_DIR}'")
 
     return repo
+
+def check_repo(path : Path) -> bool:
+    try:
+        git.Repo(path)
+        # If this succeeds, this is a valid repo
+        return True
+    except git.InvalidGitRepositoryError:
+        # The folder exists, but it's not a git repo
+        return False
+    except git.NoSuchPathError:
+        # The folder doesn't even exist
+        return False
 
 def populate_empty_repo(repo : git.Repo, report_func: Callable[[str], None] = lambda _ : None) -> None:
     readme_file = BACKUP_REPO_DIR / "README.md"
