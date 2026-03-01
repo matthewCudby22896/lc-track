@@ -10,47 +10,6 @@ import keyring
 from .constants import DB_FILE, LOCAL_EVENT_LOG
 from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
 
-DB_SCHEMA_STMT = """
-CREATE TABLE IF NOT EXISTS problems (
-    id INTEGER PRIMARY KEY,
-    slug TEXT NOT NULL UNIQUE,
-    title TEXT,
-    difficulty INTEGER CHECK (difficulty BETWEEN 0 AND 2),
-    last_review_at INTEGER,
-    next_review_at INTEGER DEFAULT 0,
-    EF REAL DEFAULT 2.5,
-    I INTEGER DEFAULT 0,
-    n INTEGER DEFAULT 0,
-    active BOOLEAN DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS topics (
-    topic_slug TEXT PRIMARY KEY,
-    topic_title TEXT NOT NULL UNIQUE
-);
-
-CREATE TABLE IF NOT EXISTS problem_topic (
-    problem_id INTEGER NOT NULL,
-    topic_slug TEXT NOT NULL,
-    PRIMARY KEY (problem_id, topic_slug),
-    FOREIGN KEY (problem_id) REFERENCES problems(id) ON DELETE CASCADE,
-    FOREIGN KEY (topic_slug) REFERENCES topics(topic_slug) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS entries(
-    uuid TEXT PRIMARY KEY,
-    problem_id INTEGER NOT NULL,
-    confidence INTEGER NOT NULL CHECK (confidence BETWEEN 0 and 5),
-    ts INTEGER NOT NULL,
-    FOREIGN KEY (problem_id) references problems(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS app_state (
-    key TEXT PRIMARY KEY,
-    value TEXT
-);
-"""
-
 def get_db_connection() -> sqlite3.Connection:
     con = sqlite3.connect(
         DB_FILE,
@@ -61,27 +20,6 @@ def get_db_connection() -> sqlite3.Connection:
 
     return con
 
-def db_exists() -> bool:
-    return os.path.exists(DB_FILE)
-
-def init_db(con : sqlite3.Connection) -> None:
-    cur = con.cursor()
-    try:
-        cur.executescript(DB_SCHEMA_STMT)
-    finally:
-        cur.close()
-
-def check_repo(path : Path) -> bool:
-    try:
-        git.Repo(path)
-        # If this succeeds, this is a valid repo
-        return True
-    except git.InvalidGitRepositoryError:
-        # The folder exists, but it's not a git repo
-        return False
-    except git.NoSuchPathError:
-        # The folder doesn't even exist
-        return False
 
 # TABLE : problems
 
@@ -315,5 +253,44 @@ def populate_db_with_problem_set(con : sqlite3.Connection,
 
         stmt = "INSERT INTO problem_topic (problem_id, topic_slug) VALUES (?, ?);"
         cur.executemany(stmt, problem_topics)
+    finally:
+        cur.close()
+
+def bootstap_db(con : sqlite3.Connection) -> None:
+    stmt = """
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        filename TEXT UNIQUE NOT NULL,
+        applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """
+
+    cur = con.cursor()
+    try:
+        cur.execute(stmt)
+    finally:
+        cur.close()
+
+def get_applied_migrations(con: sqlite3.Connection) -> set[str]:
+    stmt = """
+    SELECT filename 
+    FROM schema_migrations;
+    """
+    cur = con.cursor()
+    try:
+        cur.execute(stmt)
+        return {row[0] for row in cur.fetchall()}
+    finally:
+        cur.close()
+
+def record_migration(con: sqlite3.Connection, filename: str) -> None:
+    stmt = """
+    INSERT INTO schema_migrations (filename) 
+    VALUES (?);
+    """
+
+    cur = con.cursor()
+    try:
+        cur.execute(stmt, (filename,))
     finally:
         cur.close()

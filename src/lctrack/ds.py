@@ -46,7 +46,6 @@ class BaseEvent(ABC):  # Inherit from ABC
         data["EVENT_TYPE"] = self.event_type
         return data
 
-
 @dataclass(kw_only=True)
 class AddEntryEvent(BaseEvent):
     event_type: ClassVar[Final[str]] = "ADD_ENTRY"
@@ -144,7 +143,6 @@ class Problem:
             return f"{txt} ({hours} hrs ago)"
 
         return f"{txt} ({diff.days} days ago)"
-
 
 DIFF_TO_INT = {
     "Hard" : 2,

@@ -39,3 +39,5 @@ DIFF_COLOUR = {
     "Medium": YELLOW,
     "Hard": RED
 }
+
+MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
