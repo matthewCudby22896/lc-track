@@ -12,7 +12,12 @@ from github.Repository import Repository
 from lctrack.service import SM2
 
 from . import access
-from .constants import BACKUP_EVENT_LOG, BACKUP_REPO_DIR, LOCAL_EVENT_LOG, TMP_EVENT_LOG
+from .constants import (
+    BACKUP_EVENT_LOG_LOC,
+    BACKUP_REPO_DIR,
+    LOCAL_EVENT_LOG_LOC,
+    TMP_EVENT_LOG_LOC,
+)
 from .ds import AddEntryEvent, BaseEvent, RmEntryEvent
 
 
@@ -85,7 +90,7 @@ def update_state_from_local_event_log() -> None:
         access.clear_entries_table(con)
 
         # 1. Load all events from the local version of the event log
-        events = load_event_log(LOCAL_EVENT_LOG)
+        events = load_event_log(LOCAL_EVENT_LOG_LOC)
 
         # 2. Process all events in chronological order
         for event in events:
@@ -192,18 +197,18 @@ def event_log_sync(repo : git.Repo, report_func: Callable[[str], None] = lambda 
     repo.remotes.origin.pull()
     report_func("Latest remote event log pulled")
 
-    event_log : list[BaseEvent] = merge_event_logs(BACKUP_EVENT_LOG, LOCAL_EVENT_LOG)
+    event_log : list[BaseEvent] = merge_event_logs(BACKUP_EVENT_LOG_LOC, LOCAL_EVENT_LOG_LOC)
     report_func("Event logs merged")
 
     # Atomic writes
-    for target_path in [BACKUP_EVENT_LOG, LOCAL_EVENT_LOG]:
-        write_event_log(TMP_EVENT_LOG, event_log)
-        TMP_EVENT_LOG.replace(target_path)
+    for target_path in [BACKUP_EVENT_LOG_LOC, LOCAL_EVENT_LOG_LOC]:
+        write_event_log(TMP_EVENT_LOG_LOC, event_log)
+        TMP_EVENT_LOG_LOC.replace(target_path)
 
     update_state_from_local_event_log()
     report_func("Local state updated")
 
-    repo.index.add([BACKUP_EVENT_LOG.name])
+    repo.index.add([BACKUP_EVENT_LOG_LOC.name])
 
     if repo.index.diff("HEAD"):
         repo.index.commit("Sync: merged event logs")

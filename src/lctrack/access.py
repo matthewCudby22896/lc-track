@@ -4,13 +4,13 @@ import sqlite3
 
 import keyring
 
-from .constants import DB_FILE, LOCAL_EVENT_LOG
+from .constants import DB_LOC, DEFAULT_STUDY_MODE, LOCAL_EVENT_LOG_LOC, StudyMode
 from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
 
 
 def get_db_connection() -> sqlite3.Connection:
     con = sqlite3.connect(
-        DB_FILE,
+        DB_LOC,
         autocommit=False,
         isolation_level=None # Disables opening transactions implicitly
     )
@@ -124,7 +124,7 @@ def get_problem_topics(con : sqlite3.Connection, problem_id : int) -> list[str]:
 # EVENT LOGGING
 
 def append_event(event : BaseEvent) -> None:
-    with open(LOCAL_EVENT_LOG, "a", encoding="utf-8") as f:
+    with open(LOCAL_EVENT_LOG_LOC, "a", encoding="utf-8") as f:
         json_event = json.dumps(event.to_dict())
         f.write(json_event + '\n')
 
@@ -230,6 +230,14 @@ def set_state(con : sqlite3.Connection, key: str, value: str) -> None:
         cur.execute("REPLACE INTO app_state (key, value) VALUES (?, ?)", (key, value))
     finally:
         cur.close()
+
+def get_study_mode(con : sqlite3.Connection) -> StudyMode:
+    mode_str = get_state(con, 'study_mode')
+
+    if mode_str is None:
+        return DEFAULT_STUDY_MODE
+
+    return StudyMode(mode_str)
 
 def set_pat(pat : str) -> None:
     keyring.set_password("lc-track", "gh_pat", pat)

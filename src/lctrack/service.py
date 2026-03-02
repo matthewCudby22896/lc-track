@@ -9,7 +9,7 @@ from typing import Any
 from lctrack import lc_client
 
 from . import access
-from .constants import DIFF_COLOUR, MIGRATIONS_DIR, RESET, YELLOW
+from .constants import DIFF_COLOUR, MIGRATIONS_DIR, RESET, YELLOW, StudyMode
 from .ds import DIFF_TO_INT, AddEntryEvent, Entry, Problem, RmEntryEvent
 
 
@@ -17,12 +17,26 @@ def get_problem_to_study() -> Problem | None:
     con = access.get_db_connection()
 
     try:
+        chosen = None
+        study_mode = access.get_study_mode(con)
         for_review : list[Problem] = access.get_for_review_problems(con)
 
         if not for_review:
             return None
 
-        chosen = random.choice(for_review)
+        if study_mode == StudyMode.RANDOM:
+            chosen = random.choice(for_review)
+
+        else: # == StudyMode.SMART
+            prev_studied = [p for p in for_review if p.next_review_at > 0]
+            never_studied = [p for p in for_review if p.next_review_at == 0]
+
+            if prev_studied:
+                prev_studied.sort(key=lambda x: x.next_review_at)
+                chosen = prev_studied[0]
+
+            elif never_studied:
+                chosen = random.choice(never_studied)
 
         return chosen
     finally:
@@ -221,6 +235,14 @@ def build_entry_log() -> str:
 
         return text
 
+    finally:
+        con.close()
+
+def set_state(key : str, val : str) -> None:
+    con = access.get_db_connection()
+
+    try:
+        access.set_state(con, key, val)
     finally:
         con.close()
 
