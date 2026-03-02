@@ -4,30 +4,24 @@ from platformdirs import PlatformDirs
 
 dirs = PlatformDirs('lc-track','lc-track')
 
-def get_data_dir() -> Path:
-    data_dir = Path(dirs.user_data_dir)
-    data_dir.mkdir(parents=True, exist_ok=True)
-    return data_dir
+# Data Directory:
+DATA_DIR = Path(dirs.user_data_dir)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-def get_backup_repo_dir() -> Path:
-    data_dir = get_data_dir()
-    backup_repo = data_dir / "backup"
-    backup_repo.mkdir(parents=True, exist_ok=True)
-    return backup_repo
+DB_LOC = DATA_DIR / "database.db"
 
-DATA_DIR = get_data_dir()
-DB_FILE = DATA_DIR / "database.db" # Where the current state of lc-track is stored
+BACKUP_REPO_DIR = DATA_DIR / "backup"
+BACKUP_REPO_DIR.mkdir(parents=True, exist_ok=True)
 
-# A local copy of the event log, to which new events are appended to
-LOCAL_EVENT_LOG = DATA_DIR / "event_log_local.jsonl"
+BACKUP_EVENT_LOG_LOC = BACKUP_REPO_DIR / "event_log_backup.jsonl"
+LOCAL_EVENT_LOG_LOC = DATA_DIR / "event_log_local.jsonl"
+TMP_EVENT_LOG_LOC = DATA_DIR / "tmp_event_log.jsonl"
 
-# The directory to which the backup / sync github repo is cloned in to
-BACKUP_REPO_DIR = get_backup_repo_dir()
-BACKUP_EVENT_LOG = BACKUP_REPO_DIR / "event_log_backup.jsonl"
+# Source code
+BASE_PATH = Path(__file__).resolve().parent.parent # src
+MIGRATIONS_DIR = BASE_PATH / "lctrack" / "migrations"
 
-TMP_EVENT_LOG = DATA_DIR / "tmp_event_log.jsonl"
-
-# ANSI ESCAPE CODES (COLOURS + FORMATTING)
+# Constants
 YELLOW = "\033[33m" # MEDIUM
 GREEN = "\033[32m" # EASY
 RED = "\033[31m" # HARD
@@ -40,4 +34,3 @@ DIFF_COLOUR = {
     "Hard": RED
 }
 
-MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"

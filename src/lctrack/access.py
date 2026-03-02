@@ -4,13 +4,13 @@ import sqlite3
 
 import keyring
 
-from .constants import DB_FILE, LOCAL_EVENT_LOG
+from .constants import DB_LOC, LOCAL_EVENT_LOG_LOC
 from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
 
 
 def get_db_connection() -> sqlite3.Connection:
     con = sqlite3.connect(
-        DB_FILE,
+        DB_LOC,
         autocommit=False,
         isolation_level=None # Disables opening transactions implicitly
     )
@@ -124,7 +124,7 @@ def get_problem_topics(con : sqlite3.Connection, problem_id : int) -> list[str]:
 # EVENT LOGGING
 
 def append_event(event : BaseEvent) -> None:
-    with open(LOCAL_EVENT_LOG, "a", encoding="utf-8") as f:
+    with open(LOCAL_EVENT_LOG_LOC, "a", encoding="utf-8") as f:
         json_event = json.dumps(event.to_dict())
         f.write(json_event + '\n')
 

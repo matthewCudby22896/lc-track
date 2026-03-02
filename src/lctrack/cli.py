@@ -15,7 +15,6 @@ from .constants import (
 
 app = typer.Typer(add_completion=False)
 
-# TODO: Switch to a better system of tracking database migrations (DONE :))
 @app.callback()
 def main():
     """
