@@ -49,6 +49,7 @@ def set_mode(
 ) -> None:
     """
     Set the default problem selection strategy for the study command.
+    Usage: lc-track mode <random|smart>
 
     smart : Prioritises the most overdue problems.
     random : Selects any due problem at random.
