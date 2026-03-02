@@ -4,7 +4,7 @@ import sqlite3
 
 import keyring
 
-from .constants import DB_LOC, LOCAL_EVENT_LOG_LOC
+from .constants import DB_LOC, DEFAULT_STUDY_MODE, LOCAL_EVENT_LOG_LOC, StudyMode
 from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
 
 
@@ -230,6 +230,14 @@ def set_state(con : sqlite3.Connection, key: str, value: str) -> None:
         cur.execute("REPLACE INTO app_state (key, value) VALUES (?, ?)", (key, value))
     finally:
         cur.close()
+
+def get_study_mode(con : sqlite3.Connection) -> StudyMode:
+    mode_str = get_state(con, 'study_mode')
+
+    if mode_str is None:
+        return DEFAULT_STUDY_MODE
+
+    return StudyMode(mode_str)
 
 def set_pat(pat : str) -> None:
     keyring.set_password("lc-track", "gh_pat", pat)

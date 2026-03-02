@@ -1,3 +1,4 @@
+from enum import Enum
 from pathlib import Path
 
 from platformdirs import PlatformDirs
@@ -34,3 +35,8 @@ DIFF_COLOUR = {
     "Hard": RED
 }
 
+class StudyMode(str, Enum):
+    RANDOM = "random"
+    SMART = "smart"
+
+DEFAULT_STUDY_MODE = StudyMode.SMART

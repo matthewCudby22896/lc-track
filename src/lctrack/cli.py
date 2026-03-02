@@ -4,14 +4,7 @@ import github
 import typer
 
 from . import access, backup, service
-from .constants import (
-    BOLD_WHITE,
-    DIFF_COLOUR,
-    GREEN,
-    RED,
-    RESET,
-    YELLOW,
-)
+from .constants import BOLD_WHITE, DIFF_COLOUR, GREEN, RED, RESET, YELLOW, StudyMode
 
 app = typer.Typer(add_completion=False)
 
@@ -46,6 +39,26 @@ def study() -> None:
     colour_code = DIFF_COLOUR.get(problem.difficulty_txt)
 
     typer.echo(f"{BOLD_WHITE}To study:{RESET} LC{problem.id}. {problem.title} {colour_code}[{problem.difficulty_txt}]{RESET}")
+
+@app.command(name="mode")
+def set_mode(
+    mode: Annotated[
+        StudyMode,
+        typer.Argument(help="Study selection strategy to use by default.")
+    ]
+) -> None:
+    """
+    Set the default problem selection strategy for the study command.
+
+    smart : Prioritises the most overdue problems.
+    random : Selects any due problem at random.
+    """
+    try:
+        service.set_state('study_mode', mode.value)
+        typer.echo(f"Study mode updated to `{BOLD_WHITE}{mode.value}{RESET}`")
+
+    except Exception as exc:
+        abort(f"An unexpected error occurred: {exc}")
 
 @app.command(name="ls-active")
 def ls_active() -> None:
