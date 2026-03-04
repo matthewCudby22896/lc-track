@@ -85,6 +85,23 @@ def activate_problem(problem_id : int) -> Problem:
     finally:
         con.close()
 
+def set_active_problem_set(set_key : str, active : bool) -> int:
+    con = access.get_db_connection()
+
+    try:
+        sets = access.load_problem_sets()
+
+        problem_slugs = sets[set_key]
+
+        access.bulk_set_active_by_slug(con, problem_slugs, active)
+
+        con.commit() 
+
+        return len(problem_slugs)
+
+    finally:
+        con.close()
+
 def deactivate_problem(problem_id: int) -> Problem:
     con = access.get_db_connection()
 

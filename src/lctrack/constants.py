@@ -21,6 +21,7 @@ TMP_EVENT_LOG_LOC = DATA_DIR / "tmp_event_log.jsonl"
 # Source code
 BASE_PATH = Path(__file__).resolve().parent.parent # src
 MIGRATIONS_DIR = BASE_PATH / "lctrack" / "migrations"
+PROBLEM_SET_F_LOC = BASE_PATH / "lctrack" / "problem_sets" / "problem_sets.json"
 
 # Constants
 YELLOW = "\033[33m" # MEDIUM
@@ -38,5 +39,9 @@ DIFF_COLOUR = {
 class StudyMode(str, Enum):
     RANDOM = "random"
     SMART = "smart"
+
+class StudySets(str, Enum):
+    BLIND75 = "blind75"
+    NEETCODE150 = "neetcode150"
 
 DEFAULT_STUDY_MODE = StudyMode.SMART

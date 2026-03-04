@@ -1,2 +1,4 @@
 src/lctrack/__pycache__/*
 .vscode/
+
+tmp/

@@ -4,7 +4,7 @@ import sqlite3
 
 import keyring
 
-from .constants import DB_LOC, DEFAULT_STUDY_MODE, LOCAL_EVENT_LOG_LOC, StudyMode
+from .constants import DB_LOC, DEFAULT_STUDY_MODE, LOCAL_EVENT_LOG_LOC, StudyMode, PROBLEM_SET_F_LOC
 from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
 
 
@@ -93,6 +93,16 @@ def set_active(con :sqlite3.Connection, problem_id : int, active: bool) -> None:
         cur.execute(
             "UPDATE problems SET active = ? WHERE id = ?",
             (active, problem_id)
+        )
+    finally:
+        cur.close()
+
+def bulk_set_active_by_slug(con : sqlite3.Connection, slugs : list[str], active: bool) -> None:
+    cur = con.cursor()
+    try:
+        cur.executemany(
+            "UPDATE problems SET active = ? WHERE slug = ?",
+            [(active, slug) for slug in slugs]
         )
     finally:
         cur.close()
@@ -294,9 +304,15 @@ def record_migration(con: sqlite3.Connection, filename: str) -> None:
     INSERT INTO schema_migrations (filename)
     VALUES (?);
     """
-
     cur = con.cursor()
     try:
         cur.execute(stmt, (filename,))
     finally:
         cur.close()
+
+def load_problem_sets() -> dict[str, list[str]]:
+    with open(PROBLEM_SET_F_LOC) as f:
+        # Cast the result so mypy treats it as the correct type
+        problem_sets: dict[str, list[str]] = json.load(f)
+    
+    return problem_sets

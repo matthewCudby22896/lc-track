@@ -4,7 +4,7 @@ import github
 import typer
 
 from . import access, backup, service
-from .constants import BOLD_WHITE, DIFF_COLOUR, GREEN, RED, RESET, YELLOW, StudyMode
+from .constants import BOLD_WHITE, DIFF_COLOUR, GREEN, RED, RESET, YELLOW, StudyMode, StudySets
 
 app = typer.Typer(add_completion=False)
 
@@ -106,6 +106,43 @@ def ls_for_review():
     text = header + "".join(problem_rows)
 
     typer.echo(text)
+
+@app.command(name="activate-set")
+def activate_set(
+    study_set: Annotated[StudySets, typer.Argument(help="The predefined set of problems to activate.")]
+) -> None:
+    """
+    Activate all problems in the specified set.
+    Usage: lc-track activate-set <blind75|neetcode150>
+    """
+    try:
+        # Pass the enum value to the service layer
+        count = service.set_active_problem_set(study_set.value, active=True)
+        
+        echo_success(f"Activated {BOLD_WHITE}{count}{RESET} problems from the {BOLD_WHITE}{study_set.value}{RESET} set.")
+
+    except Exception as exc:
+        abort(f"An unexpected error occurred: {exc}")
+
+@app.command(name="deactivate-set")
+def deactivate_set(
+    study_set: Annotated[StudySets, typer.Argument(help="The predefined set of problems to remove from active study.")]
+) -> None:
+    """
+    Remove all problems in the specified set from the active study list.
+    Usage: lc-track deactivate-set <blind75|neetcode150>
+    """
+    try:
+        # We call the same service method but set active to False
+        count = service.set_active_problem_set(study_set.value, active=False)
+        
+        echo_success(
+            f"Deactivated {BOLD_WHITE}{count}{RESET} problems from the "
+            f"{BOLD_WHITE}{study_set.value}{RESET} set."
+        )
+
+    except Exception as exc:
+        abort(f"An unexpected error occurred: {exc}")
 
 @app.command(name="activate")
 def activate(id: int) -> None:
