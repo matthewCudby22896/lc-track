@@ -6,14 +6,14 @@ A command-line interface for tracking LeetCode study progress, utilising the [Su
 
 ### SuperMemo-2 Confidence Levels
 
-Select a confidence level based on the following criteria:
+Select a confidence level based on your performance:
 
-* `0` **Total Blackout** - No recall.
-* `1` **Familiar** - Incorrect answer, but the solution was recognised.
-* `2` **Easy to Remember** - Incorrect answer, but recalled with minimal prompting.
-* `3` **Hard** - Correct answer, requiring significant mental effort.
-* `4` **Hesitant** - Correct answer, requiring momentary thought.
-* `5` **Perfect** - Instant, effortless recall.
+* `0` **Complete Failure** – No recall; unable to formulate a solution.
+* `1` **Recognised** – Failed the problem, but the solution was understood upon review.
+* `2` **Near Miss** – Failed to pass, but was very close to a functional implementation.
+* `3` **Strenuous** – Correct solution, but required significant mental effort or time.
+* `4` **Proficient** – Correct solution; implemented with minor hesitation or thought.
+* `5` **Perfect** – Instant, effortless recall and flawless implementation.
 
 ### Sync & Backup
 
@@ -22,26 +22,13 @@ Users can back up their study logs using the `lc-track setup-backup` and `lc-tra
 Configure a GitHub repository using a [Fine-grained PAT](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens) to serve as a remote backup for `lc-track`'s event log and program state. 
 
 ```text
-        [ LC-TRACK SYNC SETUP ]
+[ LC-TRACK SYNC SETUP ]
 
-        Prerequisites:
-        1. A GitHub repository (e.g., 'lc-track-backup')
-        2. A Fine-Grained PAT with 'Contents: Read & Write' permissions
-           for the specified repository
+Prerequisites:
+1. A GitHub repository (e.g., 'lc-track-backup')
+2. A Fine-Grained PAT with 'Contents: Read & Write' permissions
+   for the specified repository
 ```
-#### Event Log & Synchronisation Protocol
-
-`lc-track` maintains an append-only local event log of `ADD_ENTRY` and `RM_ENTRY` events, each identified by a unique `UUID`.
-
-Executing `lc-track sync` triggers the following synchronisation protocol:
-
-1. **Remote Fetch**: Pulls the latest remote event log to the local system.
-2. **Deduplication & Merge**: Merges local and remote logs, deduplicating by UUID, and sorts the resulting set chronologically.
-3. **Remote Update**: Pushes the unified event log back to the remote repository.
-4. **State Reconstruction**: Clears and rebuilds the local `entries` table from the merged log:
-   * `ADD_ENTRY`: Creates an entry with the specified `UUID`, `problem_slug`, and `confidence` level.
-   * `RM_ENTRY`: Deletes the specified `target_entry_uuid` (ignored if the target does not exist).
-5. **Algorithm Recalculation**: Sequentially processes the reconstructed entries to recalculate the SM-2 state for all affected problems.
 
 ### Development Commands
 
