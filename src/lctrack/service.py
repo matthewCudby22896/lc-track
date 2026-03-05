@@ -168,7 +168,7 @@ def add_entry(problem_id : int, confidence : int) -> tuple[Problem, Entry]:
 
         access.update_SM2_state(
             con,
-            problem.id,
+            problem.ui_id,
             n,
             ef,
             i,
@@ -180,13 +180,13 @@ def add_entry(problem_id : int, confidence : int) -> tuple[Problem, Entry]:
             AddEntryEvent(
                 ts=now_ts,
                 entry_uuid=entry.uuid,
-                problem_id=problem.id,
+                problem_slug=problem.ui_id,
                 confidence=confidence
             )
         )
 
         # Get updated state of problem
-        problem = access.get_problem(con, problem.id)
+        problem = access.get_problem(con, problem.ui_id)
 
         con.commit()
 

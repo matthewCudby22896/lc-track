@@ -144,7 +144,7 @@ def process_event(con : sqlite3.Connection, event : BaseEvent) -> None:
             add_entry(
                 con,
                 Entry(
-                    event.problem_id,
+                    event.problem_slug,
                     event.confidence,
                     event.ts,
                     event.entry_uuid

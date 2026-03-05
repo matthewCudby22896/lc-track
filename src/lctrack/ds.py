@@ -51,7 +51,7 @@ class AddEntryEvent(BaseEvent):
     event_type: ClassVar[Final[str]] = "ADD_ENTRY"
 
     entry_uuid: UUID
-    problem_id: int
+    problem_slug: str
     confidence: int
 
     @classmethod
@@ -60,7 +60,7 @@ class AddEntryEvent(BaseEvent):
             uuid=_dict['uuid'],
             ts=_dict['ts'],
             entry_uuid=_dict['entry_uuid'],
-            problem_id=_dict['problem_id'],
+            problem_slug=_dict['title_slug'],
             confidence=_dict['confidence']
         )
 
@@ -79,8 +79,8 @@ class RmEntryEvent(BaseEvent):
 
 @dataclass
 class Problem:
-    id: int
     slug : str
+    ui_id: int
     title : str
     difficulty : int
     difficulty_txt : str
@@ -94,8 +94,8 @@ class Problem:
     @classmethod
     def from_row(cls, row: tuple) -> Self:
         return cls(
-            id=row[0],
-            slug=row[1],
+            slug=row[0],
+            ui_id=row[1],
             title=row[2],
             difficulty=row[3],
             difficulty_txt=INT_TO_DIFF[row[3]],

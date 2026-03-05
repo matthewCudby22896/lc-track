@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS problems (
-    id INTEGER PRIMARY KEY,
+    title_slug TEXT PRIMARY KEY,
+    ui_id INTEGER NOT NULL UNIQUE, /* May be an issue when updating problem ui_id */
     slug TEXT NOT NULL UNIQUE,
     title TEXT,
     difficulty INTEGER CHECK (difficulty BETWEEN 0 AND 2),
