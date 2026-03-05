@@ -1,4 +1,4 @@
-# lc-track CLI
+# lc-track
 
 A command-line interface for tracking LeetCode study progress, utilising the [SuperMemo-2](https://en.wikipedia.org/wiki/SuperMemo) (SM-2) spaced repetition algorithm to optimise review schedules.
 
