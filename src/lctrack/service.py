@@ -11,6 +11,7 @@ from lctrack import lc_client
 from . import access
 from .constants import (
     DIFF_COLOUR,
+    DIFF_TO_INT,
     MIGRATIONS_DIR,
     RESET,
     YELLOW,
@@ -21,7 +22,7 @@ from .constants import (
     TopicSlug,
     TopicText,
 )
-from .ds import DIFF_TO_INT, AddEntryEvent, Entry, Problem, RmEntryEvent
+from .ds import AddEntryEvent, Entry, Problem, RmEntryEvent
 
 
 def get_problem_to_study() -> Problem | None:

@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS topics (
 );
 
 CREATE TABLE IF NOT EXISTS problem_topic (
-    problem_slug INTEGER NOT NULL,
+    problem_slug TEXT NOT NULL,
     topic_slug TEXT NOT NULL,
     PRIMARY KEY (problem_slug, topic_slug),
     FOREIGN KEY (problem_slug) REFERENCES problems(slug) ON DELETE CASCADE,
@@ -36,3 +36,5 @@ CREATE TABLE IF NOT EXISTS app_state (
     key TEXT PRIMARY KEY,
     value TEXT
 );
+
+CREATE INDEX idx_problems_ui_id ON problems(ui_id);

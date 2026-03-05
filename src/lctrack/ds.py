@@ -5,16 +5,15 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, ClassVar, Final, Self
 
-from .constants import FrontendID, ProblemSlug, ProblemTitle
+from .constants import INT_TO_DIFF, UUID, FrontendID, ProblemSlug, ProblemTitle
 
-UUID = str
 
 @dataclass
 class Entry:
     problem_slug : ProblemSlug
     confidence: int
     ts : int
-    uuid : str = field(default_factory=lambda : str(uuid.uuid4()))
+    uuid : UUID = field(default_factory=lambda : str(uuid.uuid4()))
 
     @classmethod
     def from_row(cls, row: tuple) -> Self:
@@ -146,15 +145,4 @@ class Problem:
 
         return f"{txt} ({diff.days} days ago)"
 
-DIFF_TO_INT = {
-    "Hard" : 2,
-    "Medium" : 1,
-    "Easy" : 0
-}
-
-INT_TO_DIFF = {
-    2 : "Hard",
-    1 : "Medium",
-    0 : "Easy"
-}
 

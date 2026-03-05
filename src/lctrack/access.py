@@ -29,7 +29,6 @@ def get_db_connection() -> sqlite3.Connection:
 
     return con
 
-
 # TABLE : problems
 
 def get_for_review_problems(con : sqlite3.Connection) -> list[Problem]:
@@ -37,7 +36,18 @@ def get_for_review_problems(con : sqlite3.Connection) -> list[Problem]:
     cur = con.cursor()
     try:
         cur.execute("""
-            SELECT * FROM problems
+            SELECT
+                slug,
+                ui_id,
+                title,
+                difficulty,
+                last_review_at,
+                next_review_at,
+                EF,
+                I,
+                n,
+                active
+            FROM problems
             WHERE next_review_at <= ?
             AND active = 1
         """, (now, ))
@@ -50,7 +60,21 @@ def get_for_review_problems(con : sqlite3.Connection) -> list[Problem]:
 def get_active_problems(con : sqlite3.Connection) -> list[Problem]:
     cur = con.cursor()
     try:
-        cur.execute("SELECT * FROM problems WHERE active = 1")
+        cur.execute("""
+            SELECT
+                slug,
+                ui_id,
+                title,
+                difficulty,
+                last_review_at,
+                next_review_at,
+                EF,
+                I,
+                n,
+                active
+            FROM problems
+            WHERE active = 1
+        """)
 
         active = [Problem.from_row(x) for x in cur.fetchall()]
     finally:
@@ -175,7 +199,6 @@ def get_problem_by_slug(con: sqlite3.Connection, problem_slug: ProblemSlug) -> P
 def get_problem_topics(con : sqlite3.Connection, problem_slug : ProblemSlug) -> list[str]:
     cur = con.cursor()
     try:
-        print(problem_slug)
         cur.execute("""
             SELECT t.topic_title
             FROM problem_topic pt
@@ -184,8 +207,6 @@ def get_problem_topics(con : sqlite3.Connection, problem_slug : ProblemSlug) -> 
         """, (problem_slug,))
 
         topics = [x[0] for  x in cur.fetchall()]
-
-        print(topics)
 
         return topics
 
