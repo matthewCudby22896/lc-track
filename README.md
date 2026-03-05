@@ -2,7 +2,7 @@
 
 A command-line interface for tracking LeetCode study progress, utilising the [SuperMemo-2](https://en.wikipedia.org/wiki/SuperMemo) (SM-2) spaced repetition algorithm to optimise review schedules.
 
-This is a study tool for personal use built with Python and the [typer]{https://typer.tiangolo.com/} library.
+This is a study tool for personal use built with Python and the [typer](https://typer.tiangolo.com/) library.
 
 <img width="940" height="567" alt="lc-track CLI help menu" src="https://github.com/user-attachments/assets/e6e6b955-2c7c-40be-9ee3-e74fc9ccad50" />
 
