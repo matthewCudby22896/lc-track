@@ -24,12 +24,19 @@ Users can back up their study logs using the `lc-track setup-backup` and `lc-tra
 Configure a GitHub repository using a [Fine-grained PAT](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens) to serve as a remote backup for `lc-track`'s event log and program state. 
 
 ```text
-[ LC-TRACK SYNC SETUP ]
+        [ LC-TRACK SYNC SETUP ]
 
-Prerequisites:
-1. A GitHub repository (e.g., 'lc-track-backup')
-2. A Fine-Grained PAT with 'Contents: Read & Write' permissions
-   for the specified repository
+        Prerequisites:
+        1. A GitHub repository (e.g., 'lc-track-backup')
+        2. A Fine-Grained PAT with 'Contents: Read & Write' permissions
+        for the given repository
+        
+Repository Name: lc-track-backup
+GitHub Personal Access Token: 
+[success] Authenticated as matthewCudby22896
+[success] lc-track-backup repo found
+[success] Read & write permissions confirmed
+[success] Backup / sync configuration saved
 ```
 
 ### Development Commands
