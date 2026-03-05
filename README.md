@@ -2,20 +2,25 @@
 
 A command-line interface for tracking LeetCode study progress, utilising the [SuperMemo-2](https://en.wikipedia.org/wiki/SuperMemo) (SM-2) spaced repetition algorithm to optimise review schedules.
 
-This is a study tool for personal use built with python3, sqlite3, and the [typer](https://typer.tiangolo.com/) library.
+This is a study tool for personal use built with:
+- python3
+- sqlite3
+- and the [typer](https://typer.tiangolo.com/) library.
+
+### Commands
 
 <img width="940" height="567" alt="lc-track CLI help menu" src="https://github.com/user-attachments/assets/e6e6b955-2c7c-40be-9ee3-e74fc9ccad50" />
 
-### SuperMemo-2 Confidence Levels
+### Confidence Levels
 
-Select a confidence level based on your performance:
-
-* `0` **Complete Failure** – No recall; unable to formulate a solution.
-* `1` **Recognised** – Failed the problem, but the solution was understood upon review.
-* `2` **Near Miss** – Failed to pass, but was very close to a functional implementation.
-* `3` **Strenuous** – Correct solution, but required significant mental effort or time.
-* `4` **Proficient** – Correct solution; implemented with minor hesitation or thought.
-* `5` **Perfect** – Instant, effortless recall and flawless implementation.
+| Level | Name | Description |
+| :--- | :--- | :--- |
+| **0** | **Complete Failure** | No recall; unable to formulate a solution. |
+| **1** | **Recognised** | Failed the problem, but the solution was understood upon review. |
+| **2** | **Near Miss** | Failed to pass, but was very close to a functional implementation. |
+| **3** | **Strenuous** | Correct solution, but required significant mental effort or time. |
+| **4** | **Proficient** | Correct solution; implemented with minor hesitation or thought. |
+| **5** | **Perfect** | Instant, effortless recall and flawless implementation. |
 
 ### Sync & Backup
 
