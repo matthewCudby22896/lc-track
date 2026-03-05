@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS problems (
-    id INTEGER PRIMARY KEY,
-    slug TEXT NOT NULL UNIQUE,
+    slug TEXT PRIMARY KEY,
+    ui_id INTEGER NOT NULL UNIQUE, /* May be an issue when updating problem ui_id */
     title TEXT,
     difficulty INTEGER CHECK (difficulty BETWEEN 0 AND 2),
     last_review_at INTEGER,
@@ -17,19 +17,19 @@ CREATE TABLE IF NOT EXISTS topics (
 );
 
 CREATE TABLE IF NOT EXISTS problem_topic (
-    problem_id INTEGER NOT NULL,
+    problem_slug INTEGER NOT NULL,
     topic_slug TEXT NOT NULL,
-    PRIMARY KEY (problem_id, topic_slug),
-    FOREIGN KEY (problem_id) REFERENCES problems(id) ON DELETE CASCADE,
+    PRIMARY KEY (problem_slug, topic_slug),
+    FOREIGN KEY (problem_slug) REFERENCES problems(slug) ON DELETE CASCADE,
     FOREIGN KEY (topic_slug) REFERENCES topics(topic_slug) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS entries(
     uuid TEXT PRIMARY KEY,
-    problem_id INTEGER NOT NULL,
+    problem_slug INTEGER NOT NULL,
     confidence INTEGER NOT NULL CHECK (confidence BETWEEN 0 and 5),
     ts INTEGER NOT NULL,
-    FOREIGN KEY (problem_id) references problems(id) ON DELETE CASCADE
+    FOREIGN KEY (problem_slug) references problems(title_slug) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS app_state (

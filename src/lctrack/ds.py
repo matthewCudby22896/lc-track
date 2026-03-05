@@ -5,11 +5,13 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, ClassVar, Final, Self
 
+from .constants import FrontendID, ProblemSlug, ProblemTitle
+
 UUID = str
 
 @dataclass
 class Entry:
-    problem_id : int
+    problem_slug : ProblemSlug
     confidence: int
     ts : int
     uuid : str = field(default_factory=lambda : str(uuid.uuid4()))
@@ -18,13 +20,13 @@ class Entry:
     def from_row(cls, row: tuple) -> Self:
         return cls(
             uuid=row[0],
-            problem_id=row[1],
+            problem_slug=row[1],
             confidence=row[2],
             ts=row[3]
         )
 
-    def to_row(self) -> tuple[str, int, int, int]:
-        return (self.uuid, self.problem_id, self.confidence, self.ts)
+    def to_row(self) -> tuple[str, ProblemSlug, int, int]:
+        return (self.uuid, self.problem_slug, self.confidence, self.ts)
 
     @property
     def timestamp_txt(self):
@@ -51,7 +53,7 @@ class AddEntryEvent(BaseEvent):
     event_type: ClassVar[Final[str]] = "ADD_ENTRY"
 
     entry_uuid: UUID
-    problem_id: int
+    problem_slug: ProblemSlug
     confidence: int
 
     @classmethod
@@ -60,7 +62,7 @@ class AddEntryEvent(BaseEvent):
             uuid=_dict['uuid'],
             ts=_dict['ts'],
             entry_uuid=_dict['entry_uuid'],
-            problem_id=_dict['problem_id'],
+            problem_slug=_dict['slug'],
             confidence=_dict['confidence']
         )
 
@@ -79,9 +81,9 @@ class RmEntryEvent(BaseEvent):
 
 @dataclass
 class Problem:
-    id: int
-    slug : str
-    title : str
+    slug : ProblemSlug
+    ui_id: FrontendID
+    title : ProblemTitle
     difficulty : int
     difficulty_txt : str
     last_review_at : int | None
@@ -94,8 +96,8 @@ class Problem:
     @classmethod
     def from_row(cls, row: tuple) -> Self:
         return cls(
-            id=row[0],
-            slug=row[1],
+            slug=row[0],
+            ui_id=row[1],
             title=row[2],
             difficulty=row[3],
             difficulty_txt=INT_TO_DIFF[row[3]],

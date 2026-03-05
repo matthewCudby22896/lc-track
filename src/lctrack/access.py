@@ -4,7 +4,18 @@ import sqlite3
 
 import keyring
 
-from .constants import DB_LOC, DEFAULT_STUDY_MODE, LOCAL_EVENT_LOG_LOC, StudyMode, PROBLEM_SET_F_LOC
+from .constants import (
+    DB_LOC,
+    DEFAULT_STUDY_MODE,
+    LOCAL_EVENT_LOG_LOC,
+    PROBLEM_SET_F_LOC,
+    FrontendID,
+    ProblemSlug,
+    ProblemTitle,
+    StudyMode,
+    TopicSlug,
+    TopicText,
+)
 from .ds import AddEntryEvent, BaseEvent, Entry, Problem, RmEntryEvent
 
 
@@ -48,7 +59,7 @@ def get_active_problems(con : sqlite3.Connection) -> list[Problem]:
     return active
 
 def update_SM2_state(con : sqlite3.Connection,
-                     id : int,
+                     problem_slug : ProblemSlug,
                      n : int,
                      ef : float,
                      i : int,
@@ -63,14 +74,14 @@ def update_SM2_state(con : sqlite3.Connection,
                 i = ?,
                 last_review_at = ?,
                 next_review_at = ?
-            WHERE id = ?
-        """, (n, ef, i, int(last_review_ts), int(next_review_ts), id))
+            WHERE slug = ?
+        """, (n, ef, i, int(last_review_ts), int(next_review_ts), problem_slug))
     finally:
         cur.close()
 
 def bulk_update_problem_state(
         con : sqlite3.Connection,
-        new_states : list[tuple[int, float, int, int, int, int]]) -> None:
+        new_states : list[tuple[int, float, int, int, int, ProblemSlug]]) -> None:
     """
     Bulk update problems table with problem_states
 
@@ -82,17 +93,17 @@ def bulk_update_problem_state(
         cur.executemany("""
             UPDATE problems
             SET n = ?, EF = ?, I = ?, last_review_at = ?, next_review_at = ?
-            WHERE id = ?
+            WHERE slug = ?
         """, new_states)
     finally:
         cur.close()
 
-def set_active(con :sqlite3.Connection, problem_id : int, active: bool) -> None:
+def set_active(con :sqlite3.Connection, ui_id : int, active: bool) -> None:
     cur = con.cursor()
     try:
         cur.execute(
-            "UPDATE problems SET active = ? WHERE id = ?",
-            (active, problem_id)
+            "UPDATE problems SET active = ? WHERE ui_id = ?",
+            (active, ui_id)
         )
     finally:
         cur.close()
@@ -107,26 +118,76 @@ def bulk_set_active_by_slug(con : sqlite3.Connection, slugs : list[str], active:
     finally:
         cur.close()
 
-def get_problem(con : sqlite3.Connection, problem_id: int) -> Problem | None:
+def get_problem_by_id(con: sqlite3.Connection, problem_id: FrontendID) -> Problem | None:
     cur = con.cursor()
     try:
-        cur.execute("SELECT * FROM problems WHERE id = ?", (problem_id,))
+        cur.execute(
+            """
+            SELECT
+                slug,
+                ui_id,
+                title,
+                difficulty,
+                last_review_at,
+                next_review_at,
+                EF,
+                I,
+                n,
+                active
+            FROM problems
+            WHERE ui_id = ?
+            """,
+            (problem_id,)
+        )
         row = cur.fetchone()
     finally:
         cur.close()
+
     return Problem.from_row(row) if row else None
 
-def get_problem_topics(con : sqlite3.Connection, problem_id : int) -> list[str]:
+def get_problem_by_slug(con: sqlite3.Connection, problem_slug: ProblemSlug) -> Problem | None:
     cur = con.cursor()
     try:
+        cur.execute(
+            """
+            SELECT
+                slug,
+                ui_id,
+                title,
+                difficulty,
+                last_review_at,
+                next_review_at,
+                EF,
+                I,
+                n,
+                active
+            FROM problems
+            WHERE ui_id = ?
+            """,
+            (problem_slug,)
+        )
+        row = cur.fetchone()
+    finally:
+        cur.close()
+
+    return Problem.from_row(row) if row else None
+
+def get_problem_topics(con : sqlite3.Connection, problem_slug : ProblemSlug) -> list[str]:
+    cur = con.cursor()
+    try:
+        print(problem_slug)
         cur.execute("""
             SELECT t.topic_title
             FROM problem_topic pt
             JOIN topics t ON pt.topic_slug = t.topic_slug
-            WHERE pt.problem_id = ?
-        """, (problem_id,))
+            WHERE pt.problem_slug = ?
+        """, (problem_slug,))
 
-        return [x[0] for  x in cur.fetchall()]
+        topics = [x[0] for  x in cur.fetchall()]
+
+        print(topics)
+
+        return topics
 
     finally:
         cur.close()
@@ -144,7 +205,7 @@ def process_event(con : sqlite3.Connection, event : BaseEvent) -> None:
             add_entry(
                 con,
                 Entry(
-                    event.problem_id,
+                    event.problem_slug,
                     event.confidence,
                     event.ts,
                     event.entry_uuid
@@ -165,7 +226,7 @@ def add_entry(con : sqlite3.Connection, entry : Entry) -> None:
     try:
         cur.execute(
             """
-            INSERT INTO entries (uuid, problem_id, confidence, ts)
+            INSERT INTO entries (uuid, problem_slug, confidence, ts)
             VALUES (?, ?, ?, ?)
             """,
             entry.to_row()
@@ -177,12 +238,12 @@ def get_entry(con : sqlite3.Connection, entry_uuid : str) -> Entry | None:
     cur = con.cursor()
     try:
         cur.execute("""
-            SELECT uuid, problem_id, confidence, ts
+            SELECT uuid, problem_slug, confidence, ts
             FROM entries
             WHERE uuid = ?
         """, (entry_uuid,))
 
-        row : tuple[str, int, int, int] | None = cur.fetchone()
+        row : tuple[str, ProblemSlug, int, int] | None = cur.fetchone()
     finally:
         cur.close()
 
@@ -191,16 +252,16 @@ def get_entry(con : sqlite3.Connection, entry_uuid : str) -> Entry | None:
 def get_all_entries(con : sqlite3.Connection) -> list[Entry]:
     cur = con.cursor()
     try:
-        cur.execute("SELECT uuid, problem_id, confidence, ts FROM entries")
+        cur.execute("SELECT uuid, problem_slug, confidence, ts FROM entries")
 
         return [Entry.from_row(row) for row in cur.fetchall()]
     finally:
         cur.close()
 
-def get_entries_by_problem_id(con : sqlite3.Connection, problem_id : int) -> list[Entry]:
+def get_entries_by_problem_slug(con : sqlite3.Connection, problem_slug : str) -> list[Entry]:
     cur = con.cursor()
     try:
-        cur.execute("SELECT uuid, problem_id, confidence, ts FROM entries WHERE problem_id = ?", (problem_id,))
+        cur.execute("SELECT uuid, problem_slug, confidence, ts FROM entries WHERE problem_slug = ?", (problem_slug,))
         entries : list[Entry] = [Entry.from_row(row) for row in cur.fetchall()]
     finally:
         cur.close()
@@ -256,18 +317,18 @@ def get_pat() -> str | None:
     return keyring.get_password("lc-track", "gh_pat")
 
 def populate_db_with_problem_set(con : sqlite3.Connection,
-                                 problems : list[tuple[int, str, str, int]],
-                                 topics : list[tuple[str, str]],
-                                 problem_topics : list[tuple[int, str]]) -> None:
+                                 problems : list[tuple[ProblemSlug, FrontendID, ProblemTitle, int]],
+                                 topics : list[tuple[TopicSlug, TopicText]],
+                                 problem_topics : list[tuple[ProblemSlug, TopicSlug]]) -> None:
     cur = con.cursor()
     try:
-        stmt = "INSERT INTO problems (id, slug, title, difficulty) VALUES (?, ?, ?, ?);"
+        stmt = "INSERT INTO problems (slug, ui_id, title, difficulty) VALUES (?, ?, ?, ?);"
         cur.executemany(stmt, problems)
 
         stmt = "INSERT INTO topics (topic_slug, topic_title) VALUES (?, ?);"
         cur.executemany(stmt, topics)
 
-        stmt = "INSERT INTO problem_topic (problem_id, topic_slug) VALUES (?, ?);"
+        stmt = "INSERT INTO problem_topic (problem_slug, topic_slug) VALUES (?, ?);"
         cur.executemany(stmt, problem_topics)
     finally:
         cur.close()
@@ -314,5 +375,5 @@ def load_problem_sets() -> dict[str, list[str]]:
     with open(PROBLEM_SET_F_LOC) as f:
         # Cast the result so mypy treats it as the correct type
         problem_sets: dict[str, list[str]] = json.load(f)
-    
+
     return problem_sets
