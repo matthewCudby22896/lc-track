@@ -21,9 +21,8 @@ Select a confidence level based on your performance:
 
 Users can back up their study logs using the `lc-track setup-backup` and `lc-track sync` commands. 
 
-Configure a GitHub repository using a [Fine-grained PAT](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens) to serve as a remote backup for `lc-track`'s event log and program state. 
-
 ```text
+user@fedora:~$ lc-track setup-backup
         [ LC-TRACK SYNC SETUP ]
 
         Prerequisites:
@@ -33,10 +32,19 @@ Configure a GitHub repository using a [Fine-grained PAT](https://docs.github.com
         
 Repository Name: lc-track-backup
 GitHub Personal Access Token: 
-[success] Authenticated as matthewCudby22896
+[success] Authenticated as user12345
 [success] lc-track-backup repo found
 [success] Read & write permissions confirmed
 [success] Backup / sync configuration saved
+```
+
+```text
+user@fedora:~$ lc-track setup-backup
+[success] Backup repo found '~/.local/share/lc-track/backup'
+[success] Latest remote event log pulled
+[success] Event logs merged
+[success] Local state updated
+[success] Merged event log pushed to remote
 ```
 
 ### Development Commands
