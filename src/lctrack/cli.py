@@ -4,7 +4,16 @@ import github
 import typer
 
 from . import access, backup, service
-from .constants import BOLD_WHITE, DIFF_COLOUR, GREEN, RED, RESET, YELLOW, StudyMode, StudySets
+from .constants import (
+    BOLD_WHITE,
+    DIFF_COLOUR,
+    GREEN,
+    RED,
+    RESET,
+    YELLOW,
+    StudyMode,
+    StudySets,
+)
 
 app = typer.Typer(add_completion=False)
 
@@ -118,7 +127,7 @@ def activate_set(
     try:
         # Pass the enum value to the service layer
         count = service.set_active_problem_set(study_set.value, active=True)
-        
+
         echo_success(f"Activated {BOLD_WHITE}{count}{RESET} problems from the {BOLD_WHITE}{study_set.value}{RESET} set.")
 
     except Exception as exc:
@@ -135,7 +144,7 @@ def deactivate_set(
     try:
         # We call the same service method but set active to False
         count = service.set_active_problem_set(study_set.value, active=False)
-        
+
         echo_success(
             f"Deactivated {BOLD_WHITE}{count}{RESET} problems from the "
             f"{BOLD_WHITE}{study_set.value}{RESET} set."
@@ -244,6 +253,7 @@ def rm_entry(entry_uuid : str) -> None:
     """
     try:
         problem_id = service.rm_entry(entry_uuid)
+
     except service.EntryNotNoundError:
         typer.echo(f"No entry found with uuid : '{entry_uuid}'")
         raise typer.Exit(1) from None
@@ -356,7 +366,7 @@ def sync() -> None:
 
     except Exception as exc:
         abort(f"An unexpected error occurred: {exc}")
-    
+
 if __name__ == "__main__":
     app()
 

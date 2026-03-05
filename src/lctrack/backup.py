@@ -9,6 +9,7 @@ import github
 from github.AuthenticatedUser import AuthenticatedUser
 from github.NamedUser import NamedUser
 from github.Repository import Repository
+from lctrack.constants import ProblemSlug
 from lctrack.service import SM2
 
 from . import access
@@ -99,16 +100,16 @@ def update_state_from_local_event_log() -> None:
         # 3. Update the state of all problems based of the entries under the entries table
         entries = access.get_all_entries(con)
 
-        sm2_states : dict[int, tuple[int, float, int, int, int]] = {} # problem_id -> SM2 state (n, EF, I, last_review_ts, next_review_ts)
+        sm2_states : dict[ProblemSlug, tuple[int, float, int, int, int]] = {} # problem_slug -> SM2 state (n, EF, I, last_review_ts, next_review_ts)
 
         for E in entries:
-            if E.problem_id not in sm2_states:
+            if E.problem_slug not in sm2_states:
                 n, EF, I = (0, 2.5, 0)
             n, EF, I = SM2(E.confidence, n, EF, I)
             last_review_at = E.ts
             next_review_at = last_review_at + int(I * 86400)
 
-            sm2_states[E.problem_id] = (n, EF, I, last_review_at, next_review_at)
+            sm2_states[E.problem_slug] = (n, EF, I, last_review_at, next_review_at)
 
         new_states = [
             (v[0], v[1], v[2], v[3], v[4], k)

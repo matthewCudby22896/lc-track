@@ -45,3 +45,10 @@ class StudySets(str, Enum):
     NEETCODE150 = "neetcode150"
 
 DEFAULT_STUDY_MODE = StudyMode.SMART
+
+type ProblemSlug = str
+type ProblemTitle = str
+type FrontendID = int
+type TopicSlug = str
+type TopicText = str
+
