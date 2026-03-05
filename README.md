@@ -60,4 +60,4 @@ pip3 install -e .
 mypy
 
 # Run the linter
-ruff check
+ruff check . --fix
