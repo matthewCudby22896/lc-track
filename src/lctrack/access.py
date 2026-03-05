@@ -123,18 +123,18 @@ def get_problem_by_id(con: sqlite3.Connection, problem_id: FrontendID) -> Proble
     try:
         cur.execute(
             """
-            SELECT 
-                slug, 
-                ui_id, 
-                title, 
-                difficulty, 
-                last_review_at, 
-                next_review_at, 
-                EF, 
-                I, 
-                n, 
-                active 
-            FROM problems 
+            SELECT
+                slug,
+                ui_id,
+                title,
+                difficulty,
+                last_review_at,
+                next_review_at,
+                EF,
+                I,
+                n,
+                active
+            FROM problems
             WHERE ui_id = ?
             """,
             (problem_id,)
@@ -150,18 +150,18 @@ def get_problem_by_slug(con: sqlite3.Connection, problem_slug: ProblemSlug) -> P
     try:
         cur.execute(
             """
-            SELECT 
-                slug, 
-                ui_id, 
-                title, 
-                difficulty, 
-                last_review_at, 
-                next_review_at, 
-                EF, 
-                I, 
-                n, 
-                active 
-            FROM problems 
+            SELECT
+                slug,
+                ui_id,
+                title,
+                difficulty,
+                last_review_at,
+                next_review_at,
+                EF,
+                I,
+                n,
+                active
+            FROM problems
             WHERE ui_id = ?
             """,
             (problem_slug,)
