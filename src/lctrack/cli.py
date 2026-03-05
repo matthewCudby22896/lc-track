@@ -4,7 +4,16 @@ import github
 import typer
 
 from . import access, backup, service
-from .constants import BOLD_WHITE, DIFF_COLOUR, GREEN, RED, RESET, YELLOW, StudyMode, StudySets
+from .constants import (
+    BOLD_WHITE,
+    DIFF_COLOUR,
+    GREEN,
+    RED,
+    RESET,
+    YELLOW,
+    StudyMode,
+    StudySets,
+)
 
 app = typer.Typer(add_completion=False)
 
@@ -38,7 +47,7 @@ def study() -> None:
 
     colour_code = DIFF_COLOUR.get(problem.difficulty_txt)
 
-    typer.echo(f"{BOLD_WHITE}To study:{RESET} LC{problem.id}. {problem.title} {colour_code}[{problem.difficulty_txt}]{RESET}")
+    typer.echo(f"{BOLD_WHITE}To study:{RESET} LC{problem.ui_id}. {problem.title} {colour_code}[{problem.difficulty_txt}]{RESET}")
 
 @app.command(name="mode")
 def set_mode(
@@ -76,7 +85,7 @@ def ls_active() -> None:
     header = f"{BOLD_WHITE}Active Study Set: ({len(active_problems)} problems){RESET}\n"
 
     problem_rows = (
-        f"LC{p.id:<4}. {p.title:<50} {DIFF_COLOUR[p.difficulty_txt]}{p.difficulty_txt}{RESET}\n"
+        f"LC{p.ui_id:<4}. {p.title:<50} {DIFF_COLOUR[p.difficulty_txt]}{p.difficulty_txt}{RESET}\n"
         for p in active_problems
     )
 
@@ -99,7 +108,7 @@ def ls_for_review():
     header = f"{BOLD_WHITE}Due For Review: ({len(due_problems)} problems){RESET}\n"
 
     problem_rows = (
-        f"LC{p.id:<4}. {p.title:<50} {DIFF_COLOUR[p.difficulty_txt]}{p.difficulty_txt}{RESET}\n"
+        f"LC{p.ui_id:<4}. {p.title:<50} {DIFF_COLOUR[p.difficulty_txt]}{p.difficulty_txt}{RESET}\n"
         for p in due_problems
     )
 
@@ -118,7 +127,7 @@ def activate_set(
     try:
         # Pass the enum value to the service layer
         count = service.set_active_problem_set(study_set.value, active=True)
-        
+
         echo_success(f"Activated {BOLD_WHITE}{count}{RESET} problems from the {BOLD_WHITE}{study_set.value}{RESET} set.")
 
     except Exception as exc:
@@ -135,7 +144,7 @@ def deactivate_set(
     try:
         # We call the same service method but set active to False
         count = service.set_active_problem_set(study_set.value, active=False)
-        
+
         echo_success(
             f"Deactivated {BOLD_WHITE}{count}{RESET} problems from the "
             f"{BOLD_WHITE}{study_set.value}{RESET} set."
@@ -229,7 +238,7 @@ def add_entry(
 
     text = (
         f"{BOLD_WHITE}Entry saved: {RESET}{YELLOW}{entry.uuid}{RESET}\n"
-        f"LC{problem.id}. {problem.title} [{DIFF_COLOUR[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"
+        f"LC{problem.ui_id}. {problem.title} [{DIFF_COLOUR[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"
         f"Confidence: {confidence}\n"
         f"Streak: {problem.n}\n"
         f"Next Review: {problem.next_review_txt()}\n"
@@ -244,6 +253,7 @@ def rm_entry(entry_uuid : str) -> None:
     """
     try:
         problem_id = service.rm_entry(entry_uuid)
+
     except service.EntryNotNoundError:
         typer.echo(f"No entry found with uuid : '{entry_uuid}'")
         raise typer.Exit(1) from None

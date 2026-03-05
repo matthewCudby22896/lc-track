@@ -9,8 +9,20 @@ from typing import Any
 from lctrack import lc_client
 
 from . import access
-from .constants import DIFF_COLOUR, MIGRATIONS_DIR, RESET, YELLOW, StudyMode
-from .ds import DIFF_TO_INT, AddEntryEvent, Entry, Problem, RmEntryEvent
+from .constants import (
+    DIFF_COLOUR,
+    DIFF_TO_INT,
+    MIGRATIONS_DIR,
+    RESET,
+    YELLOW,
+    FrontendID,
+    ProblemSlug,
+    ProblemTitle,
+    StudyMode,
+    TopicSlug,
+    TopicText,
+)
+from .ds import AddEntryEvent, Entry, Problem, RmEntryEvent
 
 
 def get_problem_to_study() -> Problem | None:
@@ -66,7 +78,7 @@ def activate_problem(problem_id : int) -> Problem:
     con = access.get_db_connection()
 
     try:
-        problem = access.get_problem(con, problem_id)
+        problem = access.get_problem_by_id(con, problem_id)
 
         if not problem:
             raise ProblemNotFoundError()
@@ -95,7 +107,7 @@ def set_active_problem_set(set_key : str, active : bool) -> int:
 
         access.bulk_set_active_by_slug(con, problem_slugs, active)
 
-        con.commit() 
+        con.commit()
 
         return len(problem_slugs)
 
@@ -106,7 +118,7 @@ def deactivate_problem(problem_id: int) -> Problem:
     con = access.get_db_connection()
 
     try:
-        problem = access.get_problem(con, problem_id)
+        problem = access.get_problem_by_id(con, problem_id)
 
         if not problem:
             raise ProblemNotFoundError()
@@ -129,12 +141,12 @@ def get_problem_and_topics(problem_id : int) -> tuple[Problem, list[str]]:
     con = access.get_db_connection()
 
     try:
-        problem = access.get_problem(con, problem_id)
+        problem = access.get_problem_by_id(con, problem_id)
 
         if not problem:
             raise ProblemNotFoundError
 
-        topics : list[str] = access.get_problem_topics(con, problem_id)
+        topics : list[str] = access.get_problem_topics(con, problem.slug)
 
         return problem, topics
 
@@ -147,7 +159,7 @@ def add_entry(problem_id : int, confidence : int) -> tuple[Problem, Entry]:
     con = access.get_db_connection()
 
     try:
-        problem = access.get_problem(con, problem_id)
+        problem = access.get_problem_by_id(con, problem_id)
 
         if not problem:
             raise ProblemNotFoundError
@@ -162,13 +174,13 @@ def add_entry(problem_id : int, confidence : int) -> tuple[Problem, Entry]:
             now_ts,
         )
 
-        entry = Entry(problem_id, confidence, now_ts)
+        entry = Entry(problem.slug, confidence, now_ts)
 
         access.add_entry(con, entry)
 
         access.update_SM2_state(
             con,
-            problem.id,
+            problem.slug,
             n,
             ef,
             i,
@@ -180,13 +192,13 @@ def add_entry(problem_id : int, confidence : int) -> tuple[Problem, Entry]:
             AddEntryEvent(
                 ts=now_ts,
                 entry_uuid=entry.uuid,
-                problem_id=problem.id,
+                problem_slug=problem.slug,
                 confidence=confidence
             )
         )
 
         # Get updated state of problem
-        problem = access.get_problem(con, problem.id)
+        problem = access.get_problem_by_id(con, problem.ui_id)
 
         con.commit()
 
@@ -197,7 +209,7 @@ def add_entry(problem_id : int, confidence : int) -> tuple[Problem, Entry]:
     finally:
         con.close()
 
-def rm_entry(entry_uuid : str) -> int:
+def rm_entry(entry_uuid : str) -> FrontendID:
     con = access.get_db_connection()
 
     try:
@@ -208,7 +220,9 @@ def rm_entry(entry_uuid : str) -> int:
 
         access.rm_entry(con, entry_uuid)
 
-        recalc_problem_state(con, entry.problem_id)
+        recalc_problem_state(con, entry.problem_slug)
+
+        problem = access.get_problem_by_slug(con, entry.problem_slug)
 
         con.commit()
 
@@ -219,7 +233,7 @@ def rm_entry(entry_uuid : str) -> int:
             )
         )
 
-        return entry.problem_id
+        return problem.ui_id if problem else -1
 
     finally:
         con.close()
@@ -238,11 +252,11 @@ def build_entry_log() -> str:
         text_blocks = []
         for entry in entries:
             w = 12
-            problem = access.get_problem(con, entry.problem_id)
+            problem = access.get_problem_by_slug(con, entry.problem_slug)
             assert problem
             block = (
                 f"{YELLOW}entry {entry.uuid}{RESET}\n"
-                f"{'Problem:':<{w}} {entry.problem_id}. {problem.title} [{DIFF_COLOUR[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"
+                f"{'Problem:':<{w}} {entry.problem_slug}. {problem.title} [{DIFF_COLOUR[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"
                 f"{'Date:':<{w}} {entry.timestamp_txt}\n"
                 f"{'Confidence:':<{w}} {entry.confidence}/5\n"
             )
@@ -286,8 +300,8 @@ def get_user() -> None | str:
     finally:
         con.close()
 
-def recalc_problem_state(con : sqlite3.Connection, problem_id : int) -> None:
-    entries : list[Entry] = access.get_entries_by_problem_id(con, problem_id)
+def recalc_problem_state(con : sqlite3.Connection, problem_slug : ProblemSlug) -> None:
+    entries : list[Entry] = access.get_entries_by_problem_slug(con, problem_slug)
 
     n, ef, i = 0, 2.5, 0
 
@@ -303,7 +317,7 @@ def recalc_problem_state(con : sqlite3.Connection, problem_id : int) -> None:
 
         next_review_ts = last_review_ts + i * 86400
 
-    access.update_SM2_state(con, problem_id, n, ef, i, last_review_ts, next_review_ts)
+    access.update_SM2_state(con, problem_slug, n, ef, i, last_review_ts, next_review_ts)
 
 def calculate_new_state(n : int, ef : float, i : int, confidence : int, now_ts : int) -> tuple[int, float, int, int]:
     """
@@ -332,27 +346,36 @@ def problem_set_sync(report_func : Callable[[str], None] = lambda _ : None) -> N
 
 def parse_raw_problem_set(problems_raw : list[dict[str, Any]]
     ) -> tuple[
-        list[tuple[int, str, str, int]],
-        list[tuple[str, str]],
-        list[tuple[int, str]]]:
+        list[tuple[ProblemSlug, FrontendID, ProblemTitle, int]],
+        list[tuple[TopicSlug, TopicText]],
+        list[tuple[ProblemSlug, TopicSlug]]]:
     try:
         problems = [
             (
+                x['titleSlug'],
                 int(x['questionFrontendId']),
-                str(x['titleSlug']),
-                str(x['title']),
+                x['title'],
                 DIFF_TO_INT[x['difficulty']]
             )
             for x in problems_raw
         ]
 
-        topics = list({(str(t['slug']), str(t['name'])) for p in problems_raw for t in p['topicTags']})
+        topics = list({
+            (t['slug'], t['name'])
+            for p in problems_raw
+            for t in p['topicTags']
+        })
 
-        problem_topics = [(int(p['questionFrontendId']), str(t['slug'])) for p in problems_raw for t in p['topicTags']]
+        problem_topics = [
+            (p['titleSlug'], t['slug'])
+            for p in problems_raw
+            for t in p['topicTags']
+        ]
 
         return problems, topics, problem_topics
+
     except Exception as exc:
-        raise Exception("Failed to parse problem set from leetcode.com") from exc
+        raise Exception(f"Failed to parse problem set from leetcode.com : {exc}") from exc
 
 class ProblemNotFoundError(Exception):
     pass
