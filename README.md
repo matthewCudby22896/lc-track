@@ -1,8 +1,9 @@
 # lc-track
 
-A command-line interface for tracking LeetCode study progress, utilising the [SuperMemo-2](https://en.wikipedia.org/wiki/SuperMemo) (SM-2) spaced repetition algorithm to optimise review schedules. This is a study tool for personal use.
+A command-line tool for tracking LeetCode study progress. Allows the user to records _entries_ with a confidence (0-5) each time they study a problem. Problems are then re-scheduled for study using the  [SM2](https://en.wikipedia.org/wiki/SuperMemo) algorithm.
 
-Built with:
+#### Built with:
+
 - python3
 - SQLite
 - and the [typer](https://typer.tiangolo.com/) library.
@@ -11,7 +12,7 @@ Built with:
 
 <img width="940" height="567" alt="lc-track CLI help menu" src="https://github.com/user-attachments/assets/e6e6b955-2c7c-40be-9ee3-e74fc9ccad50" />
 
-#### Confidence Levels
+#### Confidence levels
 
 | Level | Name | Description |
 | :--- | :--- | :--- |
