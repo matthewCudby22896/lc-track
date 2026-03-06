@@ -6,7 +6,7 @@ A command-line tool for tracking LeetCode study progress. Allows the user to rec
 
 - python3
 - SQLite
-- and the [typer](https://typer.tiangolo.com/) library.
+- [typer](https://typer.tiangolo.com/)
 
 #### Commands
 
