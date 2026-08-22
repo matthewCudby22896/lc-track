@@ -186,7 +186,7 @@ def get_problem_by_slug(con: sqlite3.Connection, problem_slug: ProblemSlug) -> P
                 n,
                 active
             FROM problems
-            WHERE ui_id = ?
+            WHERE slug = ?
             """,
             (problem_slug,)
         )

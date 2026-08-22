@@ -253,7 +253,6 @@ def build_entry_log() -> str:
         for entry in entries:
             w = 12
             problem = access.get_problem_by_slug(con, entry.problem_slug)
-            assert problem
             block = (
                 f"{YELLOW}entry {entry.uuid}{RESET}\n"
                 f"{'Problem:':<{w}} {entry.problem_slug}. {problem.title} [{DIFF_COLOUR[problem.difficulty_txt]}{problem.difficulty_txt}{RESET}]\n"

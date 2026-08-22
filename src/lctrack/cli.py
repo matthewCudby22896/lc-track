@@ -2,6 +2,7 @@ from typing import Annotated
 
 import github
 import typer
+import click
 
 from . import access, backup, service
 from .constants import (
@@ -270,7 +271,7 @@ def log():
     except Exception as exc:
         abort(f"An unexpected error occurred: {exc}")
 
-    typer.echo_via_pager(text)
+    click.echo_via_pager(text)
 
 
 @app.command(name="setup-backup")
